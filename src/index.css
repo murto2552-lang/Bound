@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f8fafc; /* slate-50 */
+  --color-card: rgba(255, 255, 255, 0.8);
+  --color-primary: #2563eb; /* blue-600 */
+  --color-primary-hover: #3b82f6;
+  --color-text-main: #1e293b; /* slate-800 */
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-main antialiased min-h-screen flex flex-col;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-black/5 backdrop-blur-md transition-all hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)];
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white border-none rounded-lg py-2 px-4 font-medium transition-all hover:bg-primary-hover hover:-translate-y-0.5;
+  }
+}
