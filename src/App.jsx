@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Bookshelf from './pages/Bookshelf';
 import Assistant from './pages/Assistant';
@@ -6,7 +6,7 @@ import CalendarView from './pages/CalendarView';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Bookshelf />} />
@@ -14,6 +14,6 @@ export default function App() {
           <Route path="assistant" element={<Assistant />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
