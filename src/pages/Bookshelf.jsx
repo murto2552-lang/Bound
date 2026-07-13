@@ -436,7 +436,7 @@ export default function Bookshelf() {
               </select>
             </div>
           </div>
-          <div className="h-64 flex-1">
+          <div className="h-80 md:h-96 flex-1 w-full relative mt-2">
             {renderAsBar ? (
               <Bar data={chartConfig} options={{ maintainAspectRatio: false, responsive: true }} />
             ) : (
