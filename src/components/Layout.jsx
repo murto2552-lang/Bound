@@ -24,9 +24,20 @@ export default function Layout() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-800">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+    <div className="flex h-screen bg-slate-50 text-slate-800 flex-col md:flex-row">
+      {/* Mobile Header */}
+      <header className="md:hidden flex justify-between items-center bg-white p-4 border-b border-slate-200 shadow-sm z-20">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-700 to-orange-400 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
+          <h1 className="text-lg font-bold text-slate-900 tracking-tight">BounD</h1>
+        </div>
+        <button onClick={handleReset} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" aria-label="รีเซ็ตข้อมูล">
+          <Trash2 size={20} />
+        </button>
+      </header>
+
+      {/* Sidebar (Desktop) */}
+      <aside className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col shadow-sm z-20">
         <div className="flex items-center gap-3 px-2 mb-8 mt-6">
           <div className="w-10 h-10 bg-gradient-to-br from-purple-700 to-orange-400 rounded-xl flex items-center justify-center text-white shadow-md font-extrabold text-2xl italic pb-0.5 pr-0.5">
             B
@@ -67,9 +78,32 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-20 md:pb-0 relative w-full overflow-x-hidden">
         <Outlet />
       </main>
+
+      {/* Bottom Navigation (Mobile) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center px-2 py-1 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.25rem)' }}>
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex flex-col items-center justify-center w-full py-2 transition-all ${
+                isActive ? 'text-purple-700' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <div className={`${isActive ? 'bg-purple-100 p-1.5 rounded-xl' : 'p-1.5'}`}>
+                {item.icon}
+              </div>
+              <span className={`text-[10px] mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                {item.name.replace('Present ', '')}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
