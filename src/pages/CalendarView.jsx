@@ -125,7 +125,7 @@ export default function CalendarView() {
               <div 
                 key={index} 
                 onClick={() => day && setSelectedDate({ day, month, year, transactions: dayTx })}
-                className={`min-h-[120px] p-2 border-b border-r border-slate-100 relative group transition-colors ${day ? 'cursor-pointer hover:bg-blue-50/50' : 'bg-slate-50/50'} ${index % 7 === 6 ? 'border-r-0' : ''}`}
+                className={`min-h-[80px] md:min-h-[120px] p-1 md:p-2 border-b border-r border-slate-100 relative group transition-colors ${day ? 'cursor-pointer hover:bg-purple-50/50' : 'bg-slate-50/50'} ${index % 7 === 6 ? 'border-r-0' : ''}`}
               >
                 {day && (
                   <>
