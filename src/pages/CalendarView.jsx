@@ -74,20 +74,20 @@ export default function CalendarView() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-            <CalendarIcon className="text-blue-600" size={32} />
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
+            <CalendarIcon className="text-purple-600" size={28} />
             ปฏิทินรายรับ-รายจ่าย
           </h2>
-          <p className="text-slate-500 mt-1">ติดตามกระแสเงินสดและกำหนดชำระหนี้</p>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">ติดตามกระแสเงินสดและกำหนดชำระหนี้</p>
         </div>
         
-        <div className="flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex items-center justify-between w-full md:w-auto gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
           <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
             <ChevronLeft size={20} />
           </button>
-          <div className="w-48 text-center font-bold text-lg text-slate-800">
+          <div className="flex-1 md:w-48 text-center font-bold text-lg text-slate-800">
             {monthNames[month]} {year + 543}
           </div>
           <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">

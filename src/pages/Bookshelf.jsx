@@ -367,12 +367,12 @@ export default function Bookshelf() {
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800">Bookshelf (สรุปการเงิน)</h2>
-          <p className="text-slate-500 mt-1">ภาพรวมรายรับและหมวดหมู่รายจ่ายของคุณ</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Bookshelf (สรุปการเงิน)</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">ภาพรวมรายรับและหมวดหมู่รายจ่ายของคุณ</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-orange-500 text-white px-5 py-2.5 rounded-lg font-medium hover:from-purple-700 hover:to-orange-600 shadow-md transition-all hover:-translate-y-0.5">
+        <button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-orange-500 text-white px-5 py-2.5 rounded-lg font-medium hover:from-purple-700 hover:to-orange-600 shadow-md transition-all hover:-translate-y-0.5">
           + บันทึกรายการใหม่
         </button>
       </div>
