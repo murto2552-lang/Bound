@@ -420,15 +420,15 @@ export default function Bookshelf() {
         </div>
         
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h3 className="text-lg font-semibold text-slate-700">แนวโน้มรายรับ - รายจ่าย</h3>
-            <div className="flex gap-2">
-              <select value={chartType} onChange={e => setChartType(e.target.value)} className="text-sm p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 font-medium text-slate-600">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <select value={chartType} onChange={e => setChartType(e.target.value)} className="flex-1 sm:flex-none text-sm p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-purple-500 font-medium text-slate-600">
                 <option value="line">กราฟเส้น (Line)</option>
                 <option value="bar">กราฟแท่ง (Bar)</option>
                 <option value="waterfall">กราฟน้ำตก (Waterfall)</option>
               </select>
-              <select value={chartView} onChange={e => setChartView(e.target.value)} className="text-sm p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 font-medium text-slate-600">
+              <select value={chartView} onChange={e => setChartView(e.target.value)} className="flex-1 sm:flex-none text-sm p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-purple-500 font-medium text-slate-600">
                 <option value="today">วันนี้</option>
                 <option value="this_month">เดือนนี้</option>
                 <option value="this_year">ปีนี้</option>
@@ -453,7 +453,7 @@ export default function Bookshelf() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-500 text-sm">
+              <tr className="bg-slate-50 text-slate-500 text-sm whitespace-nowrap">
                 <th className="px-6 py-3 font-medium">วันที่</th>
                 <th className="px-6 py-3 font-medium">รายการ</th>
                 <th className="px-6 py-3 font-medium">หมวดหมู่หลัก</th>
@@ -463,14 +463,14 @@ export default function Bookshelf() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sorted.slice().reverse().map((tx, idx) => (
-                <tr key={tx.id || idx} className="hover:bg-slate-50 transition-colors">
+                <tr key={tx.id || idx} className="hover:bg-slate-50 transition-colors whitespace-nowrap">
                   <td className="px-6 py-4 text-slate-600 text-sm">{tx.date}</td>
                   <td className="px-6 py-4">
                     <div className="font-medium text-slate-800">
                       {tx.type === 'income' ? categories.income[tx.subcategory]?.label : categories.expense[tx.subcategory]?.label}
                     </div>
                     {tx.title && <div className="text-xs font-semibold text-blue-600 mt-0.5">{tx.title}</div>}
-                    {tx.notes && <div className="text-xs text-slate-500 mt-1">{tx.notes}</div>}
+                    {tx.notes && <div className="text-xs text-slate-500 mt-1 whitespace-normal max-w-xs">{tx.notes}</div>}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
