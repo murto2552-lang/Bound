@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { api } from '../api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * A modal component containing the transaction form.
@@ -34,8 +35,6 @@ export default function TransactionFormModal({
   const [isExtracting, setIsExtracting] = useState(false);
   const [txAmount, setTxAmount] = useState('');
   const formRef = useRef(null);
-
-  if (!isOpen) return null;
 
   const handleSlipUpload = (e) => {
     const file = e.target.files[0];
@@ -190,8 +189,22 @@ export default function TransactionFormModal({
   const isRecurringType = (txType === 'expense' && (currentMainCat === 'fixed' || currentMainCat === 'debt')) || (txType === 'income' && selectedSubCat === 'salary');
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-full">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
+          role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-full"
+          >
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 id="modal-title" className="text-lg font-bold text-slate-800">บันทึกรายการใหม่</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl" aria-label="ปิดหน้าต่าง">&times;</button>
@@ -363,7 +376,9 @@ export default function TransactionFormModal({
             </button>
           </form>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

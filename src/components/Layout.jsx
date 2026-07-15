@@ -1,9 +1,11 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, useLocation, useOutlet } from 'react-router-dom';
 import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2 } from 'lucide-react';
 import { api } from '../api';
-
+import { AnimatePresence } from 'framer-motion';
+import PageTransition from './PageTransition';
 export default function Layout() {
   const location = useLocation();
+  const currentOutlet = useOutlet();
 
   const handleReset = async () => {
     if (window.confirm('⚠️ คำเตือน: คุณต้องการล้างประวัติการทำรายการและหมวดหมู่ที่ตั้งไว้ทั้งหมดใช่หรือไม่?\n\nข้อมูลที่ถูกลบจะไม่สามารถกู้คืนได้ (เหมาะสำหรับการเริ่มใช้งานใหม่)')) {
@@ -79,7 +81,11 @@ export default function Layout() {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto pb-20 md:pb-0 relative w-full overflow-x-hidden">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            {currentOutlet}
+          </PageTransition>
+        </AnimatePresence>
       </main>
 
       {/* Bottom Navigation (Mobile) */}
