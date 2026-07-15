@@ -60,4 +60,7 @@ The backend database must support the following structure for a transaction:
 ## 🔐 Additional Tasks for Backend AI
 1. **CORS:** Ensure your backend enables CORS to allow requests from the frontend development server and the deployed frontend domain.
 2. **Categories (Optional but recommended):** Currently, custom categories are stored in the frontend's `localStorage` (key: `financeCategories`). If you implement user authentication, you should also create endpoints (`GET /categories`, `PUT /categories`) to persist categories in the backend, and update the frontend `Bookshelf.jsx` to fetch them.
-3. **Authentication:** The app currently has no login system. If you implement JWT/Session Auth, you MUST update the `fetch` calls in `src/api.js` to include the Authorization headers.
+6. **Authentication:** The app currently has no login system. If you implement JWT/Session Auth, you MUST update the `fetch` calls in `src/api.js` to include the Authorization headers.
+
+## 📄 Notes on Existing Features
+- **Data Export (Excel/PDF):** The frontend already includes a fully functional client-side Export feature (using `xlsx` and `jspdf`). When a user clicks export, it generates the file directly in the browser. **No backend API is required for this feature.** The backend simply needs to ensure the `GET /transactions` endpoint returns the data reliably.
