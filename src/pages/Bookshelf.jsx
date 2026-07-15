@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fontBase64 } from '../utils/Sarabun-Regular-normal';
 import { Chart, registerables } from 'chart.js';
+import { motion } from 'framer-motion';
 
 import DashboardCharts from '../components/DashboardCharts';
 import TransactionHistory from '../components/TransactionHistory';
@@ -278,13 +279,15 @@ export default function Bookshelf() {
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800">Bookshelf (สรุปการเงิน)</h2>
           <p className="text-slate-500 mt-1 text-sm md:text-base">ภาพรวมรายรับและหมวดหมู่รายจ่ายของคุณ</p>
         </div>
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => setIsModalOpen(true)} 
-          className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-orange-500 text-white px-5 py-2.5 rounded-lg font-medium hover:from-purple-700 hover:to-orange-600 shadow-md transition-all hover:-translate-y-0.5"
+          className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-orange-500 text-white px-5 py-2.5 rounded-lg font-medium shadow-md"
           aria-label="บันทึกรายการใหม่"
         >
           + บันทึกรายการใหม่
-        </button>
+        </motion.button>
       </header>
 
       <DashboardCharts 
