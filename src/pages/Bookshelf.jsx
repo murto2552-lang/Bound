@@ -403,12 +403,12 @@ export default function Bookshelf() {
     ];
   }
 
-  const totalIncomeValue = pastTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpenseValue = pastTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalIncomeValue = sorted.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpenseValue = sorted.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
   const totalBalance = totalIncomeValue - totalExpenseValue;
 
-  const todayIncome = pastTransactions.filter(t => t.type === 'income' && t.date === todayStr).reduce((sum, t) => sum + Number(t.amount), 0);
-  const todayExpense = pastTransactions.filter(t => t.type === 'expense' && t.date === todayStr).reduce((sum, t) => sum + Number(t.amount), 0);
+  const todayIncome = sorted.filter(t => t.type === 'income' && t.date === todayStr).reduce((sum, t) => sum + Number(t.amount), 0);
+  const todayExpense = sorted.filter(t => t.type === 'expense' && t.date === todayStr).reduce((sum, t) => sum + Number(t.amount), 0);
 
   let currentMainCat = 'variable';
   if (txType === 'expense') {
