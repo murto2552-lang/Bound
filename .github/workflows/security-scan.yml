@@ -1,0 +1,27 @@
+name: Weekly Security Scan
+
+on:
+  schedule:
+    # ตั้งเวลา 10:00 UTC (เท่ากับ 17:00 น. หรือ 5 โมงเย็นเวลาประเทศไทย)
+    # ทำงานทุกๆ วันศุกร์ (5)
+    - cron: '0 10 * * 5'
+  workflow_dispatch: # ปุ่มกดสั่งรันด้วยตัวเองแบบ manual จากหน้าเว็บ GitHub
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: ดึงโค้ดล่าสุด
+        uses: actions/checkout@v4
+
+      - name: ตั้งค่า Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: ติดตั้งแพ็กเกจทั้งหมด
+        run: npm ci
+
+      - name: สแกนหาช่องโหว่ความปลอดภัย
+        run: npm audit
