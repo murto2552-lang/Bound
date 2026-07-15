@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { Download, Upload, Plus, Edit2, Trash2, X, Receipt, CheckCircle, BrainCircuit } from 'lucide-react';
 import { api } from '../api';
-import { Trash2 } from 'lucide-react';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { fontBase64 } from '../utils/Sarabun-Regular-normal';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -52,13 +56,6 @@ export default function Bookshelf() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (chartView === 'today') setChartType('bar');
-    else if (chartView === 'this_month') setChartType('line');
-    else if (chartView === 'this_year') setChartType('line');
-    else if (chartView === 'all_time') setChartType('waterfall');
-  }, [chartView]);
-
   const loadData = async () => {
     const data = await api.getTransactions();
     setTransactions(data);
@@ -74,10 +71,8 @@ export default function Bookshelf() {
           'tha+eng',
           { logger: m => console.log(m) }
         ).then(({ data: { text } }) => {
-          // ค้นหาตัวเลขที่มีจุดทศนิยม 2 ตำแหน่ง (รูปแบบยอดเงิน)
           const matches = text.match(/[\d,]+\.\d{2}/g);
           if (matches && matches.length > 0) {
-            // มักจะมียอดเงินและค่าธรรมเนียม (0.00) ให้ใช้ค่าที่มากที่สุดหรือตัวแรก
             const amounts = matches.map(m => parseFloat(m.replace(/,/g, '')));
             const maxAmount = Math.max(...amounts);
             if (maxAmount > 0) {
@@ -97,7 +92,6 @@ export default function Bookshelf() {
           alert('เกิดข้อผิดพลาดในการอ่านสลิป');
         });
       } else {
-        // Fallback
         setTimeout(() => {
           setTxAmount('0.00');
           setIsExtracting(false);
@@ -112,7 +106,6 @@ export default function Bookshelf() {
     
     const formData = new FormData(formRef.current);
     
-    // The subcategory maps to a main category group.
     let subCat = formData.get('subcategory');
     let mainCat = 'income';
     
@@ -146,7 +139,7 @@ export default function Bookshelf() {
       if (recurrenceType !== 'this_month') {
         loopRule = recurrenceType;
         if (recurrenceDurationType === 'custom_installments') iterations = parseInt(recurrenceCount) || 1;
-        else iterations = 24; // Generate 24 months for "continuous/forever"
+        else iterations = 24; 
       }
     } else if (txType === 'income' && subCat === 'salary' && salarySchedule !== 'custom_date') {
       iterations = 24;
@@ -237,10 +230,83 @@ export default function Bookshelf() {
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const pastTransactions = transactions.filter(t => t.date <= todayStr);
+  const sorted = [...transactions.filter(t => t.date <= todayStr)].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const currentMonthStr = todayStr.substring(0, 7);
+  const currentYearStr = todayStr.substring(0, 4);
 
-  // Prepare chart data
-  const expenses = pastTransactions.filter(t => t.type === 'expense');
+  const getFilteredTransactionsForExport = () => {
+    let filtered = [];
+    if (chartView === 'today') {
+      filtered = sorted.filter(t => t.date === todayStr);
+    } else if (chartView === 'this_month') {
+      filtered = sorted.filter(t => t.date.startsWith(currentMonthStr));
+    } else if (chartView === 'this_year') {
+      filtered = sorted.filter(t => t.date.startsWith(currentYearStr));
+    } else {
+      filtered = [...sorted];
+    }
+    return filtered;
+  };
+
+  const exportToExcel = () => {
+    const txs = getFilteredTransactionsForExport();
+    const data = txs.map(t => ({
+      'วันที่': t.date,
+      'ประเภท': t.type === 'income' ? 'รายรับ' : 'รายจ่าย',
+      'หมวดหมู่หลัก': t.type === 'income' ? 'รายรับ' : t.mainCategory === 'variable' ? 'รายจ่ายผันแปร' : t.mainCategory === 'fixed' ? 'รายจ่ายคงที่' : 'ภาระหนี้สิน',
+      'รายการ': t.type === 'income' ? categories.income[t.subcategory]?.label : categories.expense[t.subcategory]?.label,
+      'หมายเหตุ': t.notes || '',
+      'จำนวนเงิน': Number(t.amount)
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+    XLSX.writeFile(wb, `BounD_Report_${chartView}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const txs = getFilteredTransactionsForExport();
+    const totalInc = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const totalExp = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const balance = totalInc - totalExp;
+
+    const doc = new jsPDF();
+    doc.addFileToVFS("Sarabun-Regular.ttf", fontBase64);
+    doc.addFont("Sarabun-Regular.ttf", "Sarabun", "normal");
+    doc.setFont("Sarabun");
+
+    doc.setFontSize(18);
+    doc.text("รายงานสรุปรายรับ-รายจ่าย (BounD)", 14, 20);
+    
+    doc.setFontSize(12);
+    let viewName = 'ทั้งหมด';
+    if (chartView === 'today') viewName = 'วันนี้';
+    if (chartView === 'this_month') viewName = 'เดือนนี้';
+    if (chartView === 'this_year') viewName = 'ปีนี้';
+    
+    doc.text(`มุมมอง: ${viewName}`, 14, 30);
+    doc.text(`รวมรายรับ: ${totalInc.toLocaleString('th-TH')} บาท`, 14, 38);
+    doc.text(`รวมรายจ่าย: ${totalExp.toLocaleString('th-TH')} บาท`, 14, 46);
+    doc.text(`คงเหลือ: ${balance.toLocaleString('th-TH')} บาท`, 14, 54);
+
+    const tableData = txs.map(t => [
+      t.date,
+      t.type === 'income' ? 'รายรับ' : t.mainCategory === 'variable' ? 'รายจ่ายผันแปร' : t.mainCategory === 'fixed' ? 'รายจ่ายคงที่' : 'ภาระหนี้สิน',
+      t.type === 'income' ? categories.income[t.subcategory]?.label : categories.expense[t.subcategory]?.label,
+      Number(t.amount).toLocaleString('th-TH')
+    ]);
+
+    doc.autoTable({
+      startY: 60,
+      head: [['วันที่', 'ประเภท', 'รายการ', 'จำนวนเงิน']],
+      body: tableData,
+      styles: { font: 'Sarabun', fontStyle: 'normal' },
+      headStyles: { font: 'Sarabun', fontStyle: 'normal' }
+    });
+    doc.save(`BounD_Report_${chartView}.pdf`);
+  };
+
+  const expenses = sorted.filter(t => t.type === 'expense');
   const expenseBySubcat = expenses.reduce((acc, t) => {
     acc[t.subcategory] = (acc[t.subcategory] || 0) + Number(t.amount);
     return acc;
@@ -250,10 +316,7 @@ export default function Bookshelf() {
   const subcatLabels = subcatKeys.map(k => categories.expense[k]?.label || k);
   const subcatData = subcatKeys.map(k => expenseBySubcat[k]);
 
-  const colors = [
-    '#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', 
-    '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'
-  ];
+  const colors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
   
   const doughnutData = {
     labels: subcatLabels,
@@ -264,10 +327,6 @@ export default function Bookshelf() {
       hoverOffset: 4
     }]
   };
-
-  const sorted = [...pastTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-  const currentMonthStr = todayStr.substring(0, 7);
-  const currentYearStr = todayStr.substring(0, 4);
   
   let labels = [];
   let incomeData = [];
@@ -278,22 +337,17 @@ export default function Bookshelf() {
     incomeData = [sorted.filter(t => t.date === todayStr && t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)];
     expenseData = [sorted.filter(t => t.date === todayStr && t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)];
   } else if (chartView === 'this_month') {
-    const currentMonthNum = parseInt(todayStr.substring(5, 7), 10);
-    const currentYearNum = parseInt(todayStr.substring(0, 4), 10);
-    const daysInMonth = new Date(currentYearNum, currentMonthNum, 0).getDate();
-    
+    const daysInMonth = new Date(parseInt(currentYearStr), parseInt(currentMonthStr.substring(5)), 0).getDate();
     labels = Array.from({ length: daysInMonth }, (_, i) => `${currentMonthStr}-${String(i + 1).padStart(2, '0')}`);
     const thisMonthTx = sorted.filter(t => t.date.startsWith(currentMonthStr));
-    
     incomeData = labels.map(date => thisMonthTx.filter(t => t.date === date && t.type === 'income').reduce((s, t) => s + Number(t.amount), 0));
     expenseData = labels.map(date => thisMonthTx.filter(t => t.date === date && t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0));
   } else if (chartView === 'this_year') {
     labels = Array.from({ length: 12 }, (_, i) => `${currentYearStr}-${String(i + 1).padStart(2, '0')}`);
     const thisYearTx = sorted.filter(t => t.date.startsWith(currentYearStr));
-    
     incomeData = labels.map(ym => thisYearTx.filter(t => t.date.startsWith(ym) && t.type === 'income').reduce((s, t) => s + Number(t.amount), 0));
     expenseData = labels.map(ym => thisYearTx.filter(t => t.date.startsWith(ym) && t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0));
-  } else if (chartView === 'all_time') {
+  } else {
     labels = [...new Set(sorted.map(t => t.date.substring(0, 7)))];
     if (labels.length === 0) labels = [currentMonthStr];
     incomeData = labels.map(ym => sorted.filter(t => t.date.startsWith(ym) && t.type === 'income').reduce((s, t) => s + Number(t.amount), 0));
@@ -447,8 +501,16 @@ export default function Bookshelf() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-slate-700">ประวัติล่าสุด</h3>
+          <div className="flex gap-2">
+            <button onClick={exportToExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-medium transition-colors">
+              <Download size={16} /> Excel
+            </button>
+            <button onClick={exportToPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
+              <Download size={16} /> PDF
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
