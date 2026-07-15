@@ -4,7 +4,7 @@ import { api } from '../api';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { fontBase64 } from '../utils/Sarabun-Regular-normal';
 import { Chart, registerables } from 'chart.js';
 
@@ -296,7 +296,7 @@ export default function Bookshelf() {
       Number(t.amount).toLocaleString('th-TH')
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 60,
       head: [['วันที่', 'ประเภท', 'รายการ', 'จำนวนเงิน']],
       body: tableData,
