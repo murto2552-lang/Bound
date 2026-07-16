@@ -4,7 +4,6 @@ import Bookshelf from './pages/Bookshelf';
 import Assistant from './pages/Assistant';
 import CalendarView from './pages/CalendarView';
 import Auth from './pages/Auth';
-import DevDashboard from './pages/DevDashboard';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('bound_token');
@@ -28,7 +27,6 @@ export default function App() {
           <Route index element={<Bookshelf />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="assistant" element={<Assistant />} />
-          <Route path="dev" element={<DevDashboard />} />
         </Route>
       </Routes>
     </HashRouter>
