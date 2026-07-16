@@ -169,5 +169,17 @@ export const api = {
       if (!response.ok) throw new Error('Failed to delete series');
       return true;
     }
+  },
+
+  async getAdminUsers() {
+    const response = await fetch(`${CONFIG.apiBaseUrl}/admin/users`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch admin users');
+    return await response.json();
+  },
+
+  async getAdminStats() {
+    const response = await fetch(`${CONFIG.apiBaseUrl}/admin/stats`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch admin stats');
+    return await response.json();
   }
 };
