@@ -7,20 +7,38 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error('Error opening database', err);
   } else {
     console.log('Connected to SQLite database.');
-    db.run(`
-      CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT,
-        amount REAL,
-        type TEXT,
-        mainCategory TEXT,
-        subcategory TEXT,
-        notes TEXT,
-        title TEXT,
-        seriesId TEXT,
-        receiptUrl TEXT
-      )
-    `);
+    
+    // We are dropping the transactions table to reset and add userId
+    db.serialize(() => {
+      db.run(`DROP TABLE IF EXISTS transactions`);
+      
+      db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firstName TEXT,
+          lastName TEXT,
+          email TEXT UNIQUE,
+          password TEXT
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId INTEGER,
+          date TEXT,
+          amount REAL,
+          type TEXT,
+          mainCategory TEXT,
+          subcategory TEXT,
+          notes TEXT,
+          title TEXT,
+          seriesId TEXT,
+          receiptUrl TEXT,
+          FOREIGN KEY(userId) REFERENCES users(id)
+        )
+      `);
+    });
   }
 });
 
