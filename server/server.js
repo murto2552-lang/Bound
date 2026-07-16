@@ -89,6 +89,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const authenticateAdmin = (req, res, next) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey === 'bound-admin-secret-2026') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Forbidden: Invalid Admin Key' });
+  }
+};
+
 // --- Protected Transaction Routes ---
 
 app.get('/v1/transactions', authenticateToken, (req, res) => {
@@ -134,14 +143,14 @@ app.delete('/v1/transactions/series/:seriesId', authenticateToken, (req, res) =>
 
 // --- Admin Routes ---
 
-app.get('/v1/admin/users', authenticateToken, (req, res) => {
+app.get('/v1/admin/users', authenticateAdmin, (req, res) => {
   db.all('SELECT id, firstName, lastName, email FROM users ORDER BY id DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.get('/v1/admin/stats', authenticateToken, (req, res) => {
+app.get('/v1/admin/stats', authenticateAdmin, (req, res) => {
   db.get('SELECT COUNT(*) as totalUsers FROM users', [], (err, userResult) => {
     if (err) return res.status(500).json({ error: err.message });
     
