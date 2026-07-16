@@ -1,6 +1,6 @@
 // src/config.js - Application Configuration
 const CONFIG = {
-  isMockMode: true,
-  apiBaseUrl: 'http://localhost:8080/api', 
+  isMockMode: false,
+  apiBaseUrl: 'http://localhost:3000/v1', 
 };
 export default CONFIG;
