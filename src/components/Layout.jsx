@@ -19,6 +19,11 @@ export default function Layout() {
     }
   };
 
+  const handleLogout = () => {
+    api.logout();
+    window.location.reload();
+  };
+
   const navItems = [
     { name: 'Bookshelf', path: '/', icon: <PieChart size={20} /> },
     { name: 'Calendar', path: '/calendar', icon: <CalendarDays size={20} /> },
@@ -33,9 +38,14 @@ export default function Layout() {
           <div className="w-8 h-8 bg-gradient-to-br from-purple-700 to-orange-400 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">BounD</h1>
         </div>
-        <button onClick={handleReset} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" aria-label="รีเซ็ตข้อมูล">
-          <Trash2 size={20} />
-        </button>
+        <div className="flex gap-1">
+          <button onClick={handleLogout} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg transition-colors" aria-label="ออกจากระบบ">
+            <LogOut size={20} />
+          </button>
+          <button onClick={handleReset} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" aria-label="รีเซ็ตข้อมูล">
+            <Trash2 size={20} />
+          </button>
+        </div>
       </header>
 
       {/* Sidebar (Desktop) */}
@@ -72,7 +82,7 @@ export default function Layout() {
             <Trash2 size={20} />
             ล้างข้อมูลทั้งหมด
           </button>
-          <button className="flex items-center gap-3 w-full px-4 py-3 rounded-lg font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-lg font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">
             <LogOut size={20} />
             Logout
           </button>
