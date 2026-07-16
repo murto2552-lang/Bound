@@ -132,6 +132,31 @@ app.delete('/v1/transactions/series/:seriesId', authenticateToken, (req, res) =>
   });
 });
 
+// --- Admin Routes ---
+
+app.get('/v1/admin/users', authenticateToken, (req, res) => {
+  db.all('SELECT id, firstName, lastName, email FROM users ORDER BY id DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.get('/v1/admin/stats', authenticateToken, (req, res) => {
+  db.get('SELECT COUNT(*) as totalUsers FROM users', [], (err, userResult) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    db.get('SELECT COUNT(*) as totalTx, SUM(amount) as totalAmount FROM transactions', [], (err, txResult) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      res.json({
+        totalUsers: userResult.totalUsers,
+        totalTransactions: txResult.totalTx,
+        totalAmount: txResult.totalAmount || 0
+      });
+    });
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
 });
