@@ -101,7 +101,7 @@ const authenticateAdmin = (req, res, next) => {
 // --- User Profile Routes ---
 
 app.get('/v1/users/profile', authenticateToken, (req, res) => {
-  db.get('SELECT id, firstName, lastName, email, promptpayId FROM users WHERE id = ?', [req.user.id], (err, row) => {
+  db.get('SELECT id, firstName, lastName, email, promptpayId, qrCodeUrl FROM users WHERE id = ?', [req.user.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'User not found' });
     res.json(row);
@@ -113,6 +113,17 @@ app.put('/v1/users/profile', authenticateToken, (req, res) => {
   db.run('UPDATE users SET promptpayId = ? WHERE id = ?', [promptpayId, req.user.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, promptpayId });
+  });
+});
+
+app.post('/v1/users/qrcode', authenticateToken, upload.single('qrCode'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  const qrCodeUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  db.run('UPDATE users SET qrCodeUrl = ? WHERE id = ?', [qrCodeUrl, req.user.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, qrCodeUrl });
   });
 });
 

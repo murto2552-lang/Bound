@@ -73,6 +73,19 @@ export const api = {
     return await response.json();
   },
 
+  async uploadQrCode(file) {
+    const formData = new FormData();
+    formData.append('qrCode', file);
+
+    const response = await fetch(`${CONFIG.apiBaseUrl}/users/qrcode`, {
+      method: 'POST',
+      headers: getHeaders(), // Don't set Content-Type, fetch will set it automatically with boundary for FormData
+      body: formData
+    });
+    if (!response.ok) throw new Error('Failed to upload QR Code');
+    return await response.json();
+  },
+
   async getTransactions() {
     if (CONFIG.isMockMode) {
       const db = await openDB();

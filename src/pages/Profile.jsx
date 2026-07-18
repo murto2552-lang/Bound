@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Shield, CreditCard, Loader2, Save } from 'lucide-react';
+import { User, Shield, CreditCard, Loader2, Save, Upload, ImageIcon, CheckCircle } from 'lucide-react';
 import { api } from '../api';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [promptpayId, setPromptpayId] = useState('');
   const [message, setMessage] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadProfile();
@@ -18,7 +20,9 @@ export default function Profile() {
     try {
       const data = await api.getProfile();
       setProfile(data);
-      setPromptpayId(data.promptpayId || '');
+      if (data.qrCodeUrl) {
+        setPreviewUrl(data.qrCodeUrl);
+      }
     } catch (err) {
       console.error(err);
       setMessage('Failed to load profile');
@@ -27,15 +31,34 @@ export default function Profile() {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
+        return;
+      }
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!selectedFile) {
+      setMessage('คุณยังไม่ได้เลือกรูปภาพใหม่');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
     setSaving(true);
     setMessage('');
     try {
-      await api.updateProfile({ promptpayId });
-      setMessage('บันทึกข้อมูลเรียบร้อยแล้ว (Profile updated)');
-      // Clear message after 3 seconds
+      await api.uploadQrCode(selectedFile);
+      setMessage('บันทึกรูปภาพ QR Code เรียบร้อยแล้ว (Profile updated)');
+      setSelectedFile(null);
       setTimeout(() => setMessage(''), 3000);
+      await loadProfile();
     } catch (err) {
       console.error(err);
       setMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -76,22 +99,46 @@ export default function Profile() {
           <form onSubmit={handleSave} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                หมายเลขพร้อมเพย์ (PromptPay ID)
+                รูปภาพ QR Code สำหรับรับเงิน
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <CreditCard className="w-5 h-5 text-slate-400" />
+              
+              <div 
+                className="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="space-y-2 text-center">
+                  {previewUrl ? (
+                    <div className="flex flex-col items-center">
+                      <img src={previewUrl} alt="QR Code Preview" className="h-48 w-48 object-contain rounded-lg border border-slate-200 shadow-sm" />
+                      <p className="text-sm text-purple-600 mt-4 flex items-center gap-1 font-medium">
+                        <Upload className="w-4 h-4" /> เปลี่ยนรูปภาพ
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
+                      <div className="text-sm text-slate-600">
+                        <span className="relative cursor-pointer bg-white rounded-md font-medium text-purple-600 hover:text-purple-500 focus-within:outline-none">
+                          <span>คลิกเพื่ออัปโหลด</span>
+                        </span>
+                        <p className="pl-1">หรือลากไฟล์มาวางที่นี่</p>
+                      </div>
+                      <p className="text-xs text-slate-500">PNG, JPG, GIF ขนาดไม่เกิน 5MB</p>
+                    </>
+                  )}
+                  <input 
+                    id="file-upload" 
+                    name="file-upload" 
+                    type="file" 
+                    className="sr-only" 
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={promptpayId}
-                  onChange={(e) => setPromptpayId(e.target.value)}
-                  placeholder="เบอร์โทรศัพท์ หรือ เลขบัตรประชาชน"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                />
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                ใช้สำหรับสร้าง QR Code เพื่อรับเงินจากเพื่อนหรือลูกค้า
+                คุณสามารถบันทึกรูปภาพ QR Code จากแอปพลิเคชันธนาคาร (เช่น K PLUS, SCB EASY, หรือแม่มณี) แล้วนำมาอัปโหลดที่นี่
               </p>
             </div>
 
@@ -99,19 +146,20 @@ export default function Profile() {
               <motion.div 
                 initial={{ opacity: 0, height: 0 }} 
                 animate={{ opacity: 1, height: 'auto' }} 
-                className={`p-3 rounded-lg text-sm ${message.includes('ข้อผิดพลาด') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}
+                className={`p-3 rounded-lg text-sm flex items-center gap-2 ${message.includes('ข้อผิดพลาด') || message.includes('ยังไม่') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-50 text-green-600 border border-green-100'}`}
               >
+                {message.includes('ข้อผิดพลาด') || message.includes('ยังไม่') ? null : <CheckCircle className="w-4 h-4" />}
                 {message}
               </motion.div>
             )}
 
             <button
               type="submit"
-              disabled={saving}
-              className="w-full md:w-auto px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors shadow-sm shadow-purple-600/20 flex items-center justify-center gap-2 disabled:opacity-70"
+              disabled={saving || !selectedFile}
+              className="w-full md:w-auto px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors shadow-sm shadow-purple-600/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              บันทึกข้อมูล
+              อัปโหลดและบันทึก
             </button>
           </form>
         </div>

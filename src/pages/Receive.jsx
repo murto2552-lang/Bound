@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { QRCodeSVG } from 'qrcode.react';
-import generatePayload from 'promptpay-qr';
-import { Wallet, Loader2, Info, Share, Copy } from 'lucide-react';
+import { Wallet, Loader2, Info, ArrowDownToLine } from 'lucide-react';
 import { api } from '../api';
 import { Link } from 'react-router-dom';
 
 export default function Receive() {
-  const [amount, setAmount] = useState('');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [qrPayload, setQrPayload] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -20,10 +16,6 @@ export default function Receive() {
     try {
       const data = await api.getProfile();
       setProfile(data);
-      if (data.promptpayId) {
-        // Generate initial QR without amount
-        setQrPayload(generatePayload(data.promptpayId, { amount: 0 }));
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -31,21 +23,14 @@ export default function Receive() {
     }
   };
 
-  useEffect(() => {
-    if (profile?.promptpayId) {
-      const numAmount = parseFloat(amount);
-      if (!isNaN(numAmount) && numAmount > 0) {
-        setQrPayload(generatePayload(profile.promptpayId, { amount: numAmount }));
-      } else {
-        setQrPayload(generatePayload(profile.promptpayId, { amount: 0 }));
-      }
-    }
-  }, [amount, profile]);
-
-  const handleCopy = () => {
-    if (profile?.promptpayId) {
-      navigator.clipboard.writeText(profile.promptpayId);
-      alert('คัดลอกหมายเลขพร้อมเพย์แล้ว');
+  const handleSaveImage = () => {
+    if (profile?.qrCodeUrl) {
+      const link = document.createElement('a');
+      link.href = profile.qrCodeUrl;
+      link.download = 'My_QR_Code.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -57,7 +42,7 @@ export default function Receive() {
     );
   }
 
-  if (!profile?.promptpayId) {
+  if (!profile?.qrCodeUrl) {
     return (
       <div className="flex h-full items-center justify-center p-4">
         <motion.div 
@@ -68,10 +53,10 @@ export default function Receive() {
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Info className="w-8 h-8 text-orange-500" />
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">ยังไม่ได้ตั้งค่าพร้อมเพย์</h2>
-          <p className="text-slate-500 mb-6">คุณต้องตั้งค่าหมายเลขพร้อมเพย์ในหน้าโปรไฟล์ก่อน ถึงจะสามารถสร้าง QR Code รับเงินได้ครับ</p>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">ยังไม่ได้ตั้งค่ารูปภาพ QR Code</h2>
+          <p className="text-slate-500 mb-6">คุณต้องไปอัปโหลดรูปภาพ QR Code รับเงินของคุณเองในหน้าโปรไฟล์ก่อนครับ</p>
           <Link to="/profile" className="inline-block px-6 py-3 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors">
-            ไปที่หน้าโปรไฟล์
+            ไปอัปโหลดในหน้าโปรไฟล์
           </Link>
         </motion.div>
       </div>
@@ -101,54 +86,43 @@ export default function Receive() {
         <div className="p-6 md:p-8 relative -mt-6 bg-white rounded-t-3xl text-center">
           
           <div className="mb-6">
-            <p className="text-sm text-slate-500 font-medium">ชื่อผู้รับ</p>
+            <p className="text-sm text-slate-500 font-medium">แสกนเพื่อโอนเงินให้</p>
             <p className="text-lg font-bold text-slate-800">{profile.firstName} {profile.lastName}</p>
           </div>
 
           {/* QR Code Area */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-6 shadow-inner">
-            <div className="bg-white p-4 rounded-xl shadow-sm">
-              {qrPayload ? (
-                <QRCodeSVG value={qrPayload} size={200} level="M" includeMargin={false} />
-              ) : (
-                <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* PromptPay Info */}
-          <div className="flex items-center justify-center gap-2 mb-8 bg-purple-50 text-purple-700 py-2 px-4 rounded-full w-fit mx-auto cursor-pointer hover:bg-purple-100 transition-colors" onClick={handleCopy}>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/PromptPay-logo.png/1200px-PromptPay-logo.png" alt="PromptPay" className="h-4 object-contain" />
-            <span className="font-bold font-mono tracking-wider">{profile.promptpayId}</span>
-            <Copy className="w-4 h-4 text-purple-500" />
-          </div>
-
-          {/* Amount Input */}
-          <div className="text-left">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              ระบุจำนวนเงิน (บาท) - ไม่บังคับ
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">฿</span>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 outline-none transition-all text-xl font-bold text-slate-800 placeholder-slate-300"
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-6 shadow-inner w-full max-w-[280px]">
+            <div className="bg-white p-2 rounded-xl shadow-sm overflow-hidden">
+              <img 
+                src={profile.qrCodeUrl} 
+                alt="My QR Code" 
+                className="w-full h-auto object-contain rounded-lg"
+                onError={(e) => {
+                  e.target.onerror = null; 
+                  e.target.src = 'https://via.placeholder.com/250?text=Image+Not+Found';
+                }}
               />
             </div>
           </div>
 
+          {/* Actions */}
+          <div className="flex justify-center mb-4">
+            <button 
+              onClick={handleSaveImage}
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors"
+            >
+              <ArrowDownToLine className="w-4 h-4" />
+              บันทึกรูปภาพ
+            </button>
+          </div>
+
         </div>
         
-        {/* Warning Note */}
-        <div className="bg-orange-50 p-4 border-t border-orange-100 text-sm text-orange-800 flex gap-3">
-          <Info className="w-5 h-5 flex-shrink-0 text-orange-500 mt-0.5" />
+        {/* Note */}
+        <div className="bg-purple-50 p-4 border-t border-purple-100 text-sm text-purple-800 flex gap-3 text-left">
+          <Info className="w-5 h-5 flex-shrink-0 text-purple-600 mt-0.5" />
           <p>
-            ระบบนี้เป็นเพียงการสร้าง QR Code ด้วยไลบรารี <strong>ไม่สามารถตรวจสอบสถานะการโอนเงินอัตโนมัติได้</strong> กรุณาตรวจสอบยอดเงินเข้าในแอปธนาคารของคุณเสมอ
+            ผู้โอนสามารถสแกน QR Code นี้เพื่อชำระเงินได้ทันที <strong>กรุณาให้ผู้โอนระบุจำนวนเงินด้วยตนเอง</strong> และตรวจสอบยอดเงินเข้าในแอปธนาคารของคุณเพื่อยืนยันเสมอ
           </p>
         </div>
       </motion.div>
