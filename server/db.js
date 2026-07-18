@@ -18,9 +18,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
           firstName TEXT,
           lastName TEXT,
           email TEXT UNIQUE,
-          password TEXT
+          password TEXT,
+          promptpayId TEXT
         )
       `);
+
+      // Attempt to add column for existing databases (ignore error if it already exists)
+      db.run(`ALTER TABLE users ADD COLUMN promptpayId TEXT`, (err) => {});
 
       db.run(`
         CREATE TABLE IF NOT EXISTS transactions (

@@ -1,5 +1,5 @@
 import { Link, useLocation, useOutlet } from 'react-router-dom';
-import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2 } from 'lucide-react';
+import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2, QrCode, User } from 'lucide-react';
 import { api } from '../api';
 import { AnimatePresence } from 'framer-motion';
 import PageTransition from './PageTransition';
@@ -27,7 +27,9 @@ export default function Layout() {
   const navItems = [
     { name: 'Bookshelf', path: '/', icon: <PieChart size={20} /> },
     { name: 'Calendar', path: '/calendar', icon: <CalendarDays size={20} /> },
-    { name: 'Present Assistant', path: '/assistant', icon: <Sparkles size={20} /> },
+    { name: 'Receive', path: '/receive', icon: <QrCode size={20} /> },
+    { name: 'Assistant', path: '/assistant', icon: <Sparkles size={20} /> },
+    { name: 'Profile', path: '/profile', icon: <User size={20} /> },
   ];
 
   return (

@@ -98,6 +98,24 @@ const authenticateAdmin = (req, res, next) => {
   }
 };
 
+// --- User Profile Routes ---
+
+app.get('/v1/users/profile', authenticateToken, (req, res) => {
+  db.get('SELECT id, firstName, lastName, email, promptpayId FROM users WHERE id = ?', [req.user.id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    res.json(row);
+  });
+});
+
+app.put('/v1/users/profile', authenticateToken, (req, res) => {
+  const { promptpayId } = req.body;
+  db.run('UPDATE users SET promptpayId = ? WHERE id = ?', [promptpayId, req.user.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, promptpayId });
+  });
+});
+
 // --- Protected Transaction Routes ---
 
 app.get('/v1/transactions', authenticateToken, (req, res) => {
