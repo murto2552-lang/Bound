@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #f8fafc; /* slate-50 */
-  --color-card: rgba(255, 255, 255, 0.8);
-  --color-primary: #2563eb; /* blue-600 */
-  --color-primary-hover: #3b82f6;
-  --color-text-main: #1e293b; /* slate-800 */
+  --color-background: #f8fafc;
+  --color-card: rgba(255, 255, 255, 0.85);
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-text-main: #1e293b;
 }
 
 @layer base {
   body {
-    @apply bg-background text-text-main antialiased min-h-screen flex flex-col;
+    @apply text-text-main antialiased min-h-screen flex flex-col;
     font-family: 'Inter', sans-serif;
+    /* Soft mesh background gradient */
+    background-color: #f8fafc;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(253,16%,7%,0) 0, transparent 50%), 
+      radial-gradient(at 50% 0%, hsla(225,39%,30%,0.05) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(339,49%,30%,0.05) 0, transparent 50%);
+    background-attachment: fixed;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
   }
 }
 
 @layer components {
+  /* Premium Glass Card Effect */
   .glass-card {
-    @apply bg-card rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-black/5 backdrop-blur-md transition-all hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)];
+    @apply bg-white/70 rounded-2xl p-6 border border-white/50 backdrop-blur-xl transition-all duration-300;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.05), 0 0 1px 0 rgba(0, 0, 0, 0.1);
   }
   
-  .btn-primary {
-    @apply bg-primary text-white border-none rounded-lg py-2 px-4 font-medium transition-all hover:bg-primary-hover hover:-translate-y-0.5;
+  .glass-card:hover {
+    @apply bg-white/90 border-white/80;
+    box-shadow: 0 12px 32px -4px rgba(99, 102, 241, 0.1), 0 0 1px 0 rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
   }
+
+  /* Specific panel for Sidebar to be extremely glossy */
+  .glass-panel {
+    @apply bg-white/60 border-r border-white/60 backdrop-blur-2xl shadow-[4px_0_24px_rgba(0,0,0,0.02)];
+  }
+
+  /* Card inside Card */
+  .inner-card {
+    @apply bg-white/80 rounded-xl p-4 border border-white/50 shadow-sm transition-all;
+  }
+  
+  .inner-card:hover {
+    @apply bg-white shadow-md border-purple-100;
+  }
+}
+
+/* Custom Scrollbar for a premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
