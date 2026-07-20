@@ -37,7 +37,7 @@ export default function Layout() {
       {/* Mobile Header */}
       <header className="md:hidden flex justify-between items-center bg-white p-4 border-b border-slate-200 shadow-sm z-20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-700 to-orange-400 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
+          <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-orange-500 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">BounD</h1>
         </div>
         <div className="flex gap-1">
@@ -53,7 +53,7 @@ export default function Layout() {
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col shadow-sm z-20">
         <div className="flex items-center gap-3 px-2 mb-8 mt-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-700 to-orange-400 rounded-xl flex items-center justify-center text-white shadow-md font-extrabold text-2xl italic pb-0.5 pr-0.5">
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-md font-extrabold text-2xl italic pb-0.5 pr-0.5">
             B
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">BounD</h1>

@@ -36,7 +36,7 @@ export default function DashboardCharts({
     <>
       {/* Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" aria-label="สรุปยอดเงิน">
-        <div className="bg-gradient-to-br from-purple-700 to-orange-500 p-6 rounded-2xl shadow-md text-white flex flex-col justify-between">
+        <div className="bg-gradient-to-r from-purple-600 to-orange-500 p-6 rounded-2xl shadow-md text-white flex flex-col justify-between">
           <div>
             <h3 className="text-blue-100 font-medium mb-1">ยอดเงินคงเหลือ</h3>
             <div className="text-3xl font-bold">{totalBalance.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}</div>

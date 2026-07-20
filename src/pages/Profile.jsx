@@ -82,7 +82,7 @@ export default function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
       >
-        <div className="bg-gradient-to-r from-purple-700 to-indigo-600 p-8 text-white text-center">
+        <div className="bg-gradient-to-r from-purple-600 to-orange-500 p-8 text-white text-center">
           <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white/40 shadow-lg">
             <User className="w-10 h-10 text-white" />
           </div>

@@ -68,10 +68,10 @@ export default function Receive() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden relative"
+        className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative"
       >
         {/* Header decoration */}
-        <div className="h-32 bg-gradient-to-br from-indigo-900 to-purple-800 relative overflow-hidden">
+        <div className="h-32 bg-gradient-to-r from-purple-600 to-orange-500 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full -ml-8 -mb-8 blur-lg"></div>
           
@@ -83,7 +83,7 @@ export default function Receive() {
           </div>
         </div>
 
-        <div className="p-6 md:p-8 relative -mt-6 bg-white rounded-t-3xl text-center">
+        <div className="p-6 md:p-8 relative -mt-6 bg-white rounded-t-2xl text-center">
           
           <div className="mb-6">
             <p className="text-sm text-slate-500 font-medium">แสกนเพื่อโอนเงินให้</p>
