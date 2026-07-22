@@ -20,72 +20,92 @@ function openDB() {
   });
 }
 
-function getHeaders() {
-  const token = localStorage.getItem('bound_token');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+// All authenticated requests rely on the httpOnly session cookie, so every
+// call must send credentials. There is no token in JS anymore (XSS-safe).
+function authFetch(url, options = {}) {
+  return fetch(url, { credentials: 'include', ...options });
 }
 
 export const api = {
+  // --- Auth ---
   async login(email, password) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/auth/login`, {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Login failed');
-    localStorage.setItem('bound_token', data.token);
-    localStorage.setItem('bound_user', JSON.stringify(data.user));
-    return data;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    return data.user;
   },
 
   async register(userData) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/auth/register`, {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
+      body: JSON.stringify(userData),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Registration failed');
-    localStorage.setItem('bound_token', data.token);
-    localStorage.setItem('bound_user', JSON.stringify(data.user));
-    return data;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    return data.user;
   },
 
-  logout() {
-    localStorage.removeItem('bound_token');
-    localStorage.removeItem('bound_user');
+  async loginWithGoogle(credential) {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Google sign-in failed');
+    return data.user;
   },
 
+  // Returns the current user, or null if the session is invalid/expired.
+  async me() {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/auth/me`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user;
+  },
+
+  async logout() {
+    try {
+      await authFetch(`${CONFIG.apiBaseUrl}/auth/logout`, { method: 'POST' });
+    } catch {
+      /* ignore network errors on logout */
+    }
+  },
+
+  // --- Profile ---
   async getProfile() {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/users/profile`, { headers: getHeaders() });
-    if (!response.ok) throw new Error('Failed to fetch profile');
-    return await response.json();
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/users/profile`);
+    if (!res.ok) throw new Error('Failed to fetch profile');
+    return await res.json();
   },
 
   async updateProfile(data) {
-    const response = await fetch(`${CONFIG.apiBaseUrl}/users/profile`, {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/users/profile`, {
       method: 'PUT',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Failed to update profile');
-    return await response.json();
+    if (!res.ok) throw new Error('Failed to update profile');
+    return await res.json();
   },
 
   async uploadQrCode(file) {
     const formData = new FormData();
     formData.append('qrCode', file);
-
-    const response = await fetch(`${CONFIG.apiBaseUrl}/users/qrcode`, {
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/users/qrcode`, {
       method: 'POST',
-      headers: getHeaders(), // Don't set Content-Type, fetch will set it automatically with boundary for FormData
-      body: formData
+      body: formData, // browser sets multipart boundary automatically
     });
-    if (!response.ok) throw new Error('Failed to upload QR Code');
-    return await response.json();
+    if (!res.ok) throw new Error('Failed to upload QR Code');
+    return await res.json();
   },
 
+  // --- Transactions ---
   async getTransactions() {
     if (CONFIG.isMockMode) {
       const db = await openDB();
@@ -95,24 +115,19 @@ export const api = {
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
-    } else {
-      const response = await fetch(`${CONFIG.apiBaseUrl}/transactions`, {
-        headers: getHeaders()
-      });
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-           this.logout();
-           window.location.reload();
-        }
-        throw new Error('Failed to fetch transactions');
-      }
-      return await response.json();
     }
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/transactions`);
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        window.dispatchEvent(new Event('bound:unauthorized'));
+      }
+      throw new Error('Failed to fetch transactions');
+    }
+    return await res.json();
   },
 
   async createTransaction(data) {
     if (CONFIG.isMockMode) {
-      // Mock code omitted for brevity but keeping basic structure
       let txObj = {};
       if (data instanceof FormData) {
         txObj = {
@@ -123,7 +138,7 @@ export const api = {
           mainCategory: data.get('mainCategory'),
           notes: data.get('notes') || '',
           title: data.get('title') || '',
-          seriesId: data.get('seriesId') || null
+          seriesId: data.get('seriesId') || null,
         };
       } else {
         txObj = data;
@@ -135,21 +150,17 @@ export const api = {
         req.onsuccess = () => resolve({ id: req.result, ...txObj });
         req.onerror = () => reject(req.error);
       });
-    } else {
-      let fetchOptions = { 
-        method: 'POST',
-        headers: getHeaders()
-      };
-      if (data instanceof FormData) {
-        fetchOptions.body = data;
-      } else {
-        fetchOptions.headers['Content-Type'] = 'application/json';
-        fetchOptions.body = JSON.stringify(data);
-      }
-      const response = await fetch(`${CONFIG.apiBaseUrl}/transactions`, fetchOptions);
-      if (!response.ok) throw new Error('Failed to create transaction');
-      return await response.json();
     }
+    const fetchOptions = { method: 'POST' };
+    if (data instanceof FormData) {
+      fetchOptions.body = data;
+    } else {
+      fetchOptions.headers = { 'Content-Type': 'application/json' };
+      fetchOptions.body = JSON.stringify(data);
+    }
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/transactions`, fetchOptions);
+    if (!res.ok) throw new Error('Failed to create transaction');
+    return await res.json();
   },
 
   async deleteTransaction(id) {
@@ -161,14 +172,10 @@ export const api = {
         req.onsuccess = () => resolve(true);
         req.onerror = () => reject(req.error);
       });
-    } else {
-      const response = await fetch(`${CONFIG.apiBaseUrl}/transactions/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to delete transaction');
-      return true;
     }
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/transactions/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete transaction');
+    return true;
   },
 
   async deleteSeries(seriesId) {
@@ -178,25 +185,18 @@ export const api = {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const req = store.getAll();
-        
         req.onsuccess = () => {
           const items = req.result;
-          items.forEach(item => {
-            if (item.seriesId === seriesId) {
-              store.delete(item.id);
-            }
+          items.forEach((item) => {
+            if (item.seriesId === seriesId) store.delete(item.id);
           });
           resolve(true);
         };
         req.onerror = () => reject(req.error);
       });
-    } else {
-      const response = await fetch(`${CONFIG.apiBaseUrl}/transactions/series/${seriesId}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to delete series');
-      return true;
     }
-  }
+    const res = await authFetch(`${CONFIG.apiBaseUrl}/transactions/series/${seriesId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete series');
+    return true;
+  },
 };
