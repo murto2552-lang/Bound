@@ -57,6 +57,35 @@ export const api = {
     localStorage.removeItem('bound_user');
   },
 
+  async getProfile() {
+    const response = await fetch(`${CONFIG.apiBaseUrl}/users/profile`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch profile');
+    return await response.json();
+  },
+
+  async updateProfile(data) {
+    const response = await fetch(`${CONFIG.apiBaseUrl}/users/profile`, {
+      method: 'PUT',
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update profile');
+    return await response.json();
+  },
+
+  async uploadQrCode(file) {
+    const formData = new FormData();
+    formData.append('qrCode', file);
+
+    const response = await fetch(`${CONFIG.apiBaseUrl}/users/qrcode`, {
+      method: 'POST',
+      headers: getHeaders(), // Don't set Content-Type, fetch will set it automatically with boundary for FormData
+      body: formData
+    });
+    if (!response.ok) throw new Error('Failed to upload QR Code');
+    return await response.json();
+  },
+
   async getTransactions() {
     if (CONFIG.isMockMode) {
       const db = await openDB();

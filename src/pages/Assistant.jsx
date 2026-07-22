@@ -94,7 +94,7 @@ export default function Assistant() {
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Safe to spend */}
-            <div className="bg-gradient-to-br from-purple-700 to-orange-500 p-6 rounded-2xl shadow-md text-white relative overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-orange-500 p-6 rounded-2xl shadow-md text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-20">
                 <Calendar size={80} />
               </div>

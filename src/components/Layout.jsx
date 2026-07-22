@@ -1,5 +1,5 @@
 import { Link, useLocation, useOutlet } from 'react-router-dom';
-import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2 } from 'lucide-react';
+import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2, QrCode, User } from 'lucide-react';
 import { api } from '../api';
 import { AnimatePresence } from 'framer-motion';
 import PageTransition from './PageTransition';
@@ -27,15 +27,17 @@ export default function Layout() {
   const navItems = [
     { name: 'Bookshelf', path: '/', icon: <PieChart size={20} /> },
     { name: 'Calendar', path: '/calendar', icon: <CalendarDays size={20} /> },
-    { name: 'Present Assistant', path: '/assistant', icon: <Sparkles size={20} /> },
+    { name: 'Receive', path: '/receive', icon: <QrCode size={20} /> },
+    { name: 'Assistant', path: '/assistant', icon: <Sparkles size={20} /> },
+    { name: 'Profile', path: '/profile', icon: <User size={20} /> },
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-800 flex-col md:flex-row">
+    <div className="flex h-screen overflow-hidden text-slate-800 flex-col md:flex-row">
       {/* Mobile Header */}
-      <header className="md:hidden flex justify-between items-center bg-white p-4 border-b border-slate-200 shadow-sm z-20">
+      <header className="md:hidden flex justify-between items-center bg-white/70 backdrop-blur-xl p-4 border-b border-white/40 shadow-[0_4px_24px_rgba(0,0,0,0.02)] z-20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-700 to-orange-400 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
+          <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-orange-500 rounded-lg flex items-center justify-center text-white shadow-sm font-extrabold text-xl italic pb-0.5 pr-0.5">B</div>
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">BounD</h1>
         </div>
         <div className="flex gap-1">
@@ -49,9 +51,9 @@ export default function Layout() {
       </header>
 
       {/* Sidebar (Desktop) */}
-      <aside className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col shadow-sm z-20">
+      <aside className="hidden md:flex w-64 glass-panel flex-col z-20">
         <div className="flex items-center gap-3 px-2 mb-8 mt-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-700 to-orange-400 rounded-xl flex items-center justify-center text-white shadow-md font-extrabold text-2xl italic pb-0.5 pr-0.5">
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-md font-extrabold text-2xl italic pb-0.5 pr-0.5">
             B
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">BounD</h1>

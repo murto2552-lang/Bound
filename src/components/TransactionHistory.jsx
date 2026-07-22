@@ -17,7 +17,7 @@ export default function TransactionHistory({
   exportToPDF 
 }) {
   return (
-    <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" aria-labelledby="history-heading">
+    <section className="glass-card" aria-labelledby="history-heading">
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
         <h3 id="history-heading" className="text-lg font-semibold text-slate-700">ประวัติล่าสุด</h3>
         <div className="flex gap-2">
