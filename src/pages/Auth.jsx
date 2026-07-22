@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../api';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,19 +10,40 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, loading: authLoading, login, register, loginWithGoogle } = useAuth();
+
+  // Already signed in → send to the app.
+  if (!authLoading && user) return <Navigate to="/" replace />;
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isLogin && formData.password.length < 8) {
+      setError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
     setLoading(true);
     try {
       if (isLogin) {
-        await api.login(formData.email, formData.password);
+        await login(formData.email, formData.password);
       } else {
-        await api.register(formData);
+        await register(formData);
       }
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async (credential) => {
+    setError('');
+    setLoading(true);
+    try {
+      await loginWithGoogle(credential);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -152,6 +174,14 @@ export default function Auth() {
               </motion.button>
             </motion.form>
           </AnimatePresence>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400">หรือ</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          <GoogleSignInButton onCredential={handleGoogle} onError={setError} />
         </div>
       </motion.div>
     </div>

@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Secrets & environment
+.env
+.env.local
+.env.*.local
+
+# Database & uploads (server)
+server/finance.db
+server/finance.db-journal
+server/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

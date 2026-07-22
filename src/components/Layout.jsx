@@ -1,11 +1,14 @@
-import { Link, useLocation, useOutlet } from 'react-router-dom';
+import { Link, useLocation, useOutlet, useNavigate } from 'react-router-dom';
 import { Home, PieChart, Sparkles, LogOut, Wallet, CalendarDays, Trash2, QrCode, User } from 'lucide-react';
 import { api } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { AnimatePresence } from 'framer-motion';
 import PageTransition from './PageTransition';
 export default function Layout() {
   const location = useLocation();
   const currentOutlet = useOutlet();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleReset = async () => {
     if (window.confirm('⚠️ คำเตือน: คุณต้องการล้างประวัติการทำรายการและหมวดหมู่ที่ตั้งไว้ทั้งหมดใช่หรือไม่?\n\nข้อมูลที่ถูกลบจะไม่สามารถกู้คืนได้ (เหมาะสำหรับการเริ่มใช้งานใหม่)')) {
@@ -19,9 +22,9 @@ export default function Layout() {
     }
   };
 
-  const handleLogout = () => {
-    api.logout();
-    window.location.reload();
+  const handleLogout = async () => {
+    await logout();
+    navigate('/auth', { replace: true });
   };
 
   const navItems = [
