@@ -1,61 +1,79 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { createClient } = require('@libsql/client');
 
-const dbPath = path.resolve(__dirname, 'finance.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database', err);
-  } else {
-    console.log('Connected to SQLite database.');
-  }
+// In production point at Turso (libsql://... + auth token).
+// In local dev fall back to a plain SQLite file — same SQL, no cloud needed.
+const url =
+  process.env.TURSO_DATABASE_URL ||
+  `file:${path.resolve(__dirname, 'finance.db')}`;
+
+const client = createClient({
+  url,
+  ...(process.env.TURSO_AUTH_TOKEN ? { authToken: process.env.TURSO_AUTH_TOKEN } : {}),
 });
 
-// Enforce foreign keys (off by default in SQLite)
-db.run('PRAGMA foreign_keys = ON');
+// --- Promise helpers (same interface the routes already use) ---
+const dbGet = async (sql, args = []) => {
+  const rs = await client.execute({ sql, args });
+  return rs.rows[0];
+};
 
-/**
- * Add a column only if it does not already exist. SQLite has no
- * "ADD COLUMN IF NOT EXISTS", so we swallow the duplicate-column error.
- * This is our lightweight migration mechanism — NEVER drop tables here.
- */
-function addColumnIfMissing(table, columnDef) {
-  db.run(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`, (err) => {
-    if (err && !/duplicate column/i.test(err.message)) {
+const dbAll = async (sql, args = []) => {
+  const rs = await client.execute({ sql, args });
+  return rs.rows;
+};
+
+const dbRun = async (sql, args = []) => {
+  const rs = await client.execute({ sql, args });
+  return {
+    lastID: rs.lastInsertRowid != null ? Number(rs.lastInsertRowid) : undefined,
+    changes: rs.rowsAffected,
+  };
+};
+
+// Add a column only if it does not already exist (lightweight migration).
+async function addColumnIfMissing(table, columnDef) {
+  try {
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) {
       console.error(`Migration warning on ${table}.${columnDef}:`, err.message);
     }
-  });
+  }
 }
 
-db.serialize(() => {
-  db.run(`
+// Must be awaited before the server starts accepting requests.
+async function init() {
+  await client.execute('PRAGMA foreign_keys = ON');
+
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       firstName TEXT,
       lastName TEXT,
       email TEXT UNIQUE,
-      password TEXT,                 -- nullable: Google-only users have no password
-      provider TEXT DEFAULT 'local', -- 'local' | 'google'
+      password TEXT,
+      provider TEXT DEFAULT 'local',
       googleId TEXT,
       avatarUrl TEXT,
-      role TEXT DEFAULT 'user',      -- 'user' | 'admin'
+      role TEXT DEFAULT 'user',
       promptpayId TEXT,
       qrCodeUrl TEXT,
       createdAt TEXT DEFAULT (datetime('now'))
     )
   `);
 
-  // Migrations for pre-existing databases (safe: ignore if column exists)
-  addColumnIfMissing('users', 'provider TEXT DEFAULT \'local\'');
-  addColumnIfMissing('users', 'googleId TEXT');
-  addColumnIfMissing('users', 'avatarUrl TEXT');
-  addColumnIfMissing('users', 'role TEXT DEFAULT \'user\'');
-  addColumnIfMissing('users', 'promptpayId TEXT');
-  addColumnIfMissing('users', 'qrCodeUrl TEXT');
-  addColumnIfMissing('users', 'createdAt TEXT');
+  await addColumnIfMissing('users', "provider TEXT DEFAULT 'local'");
+  await addColumnIfMissing('users', 'googleId TEXT');
+  await addColumnIfMissing('users', 'avatarUrl TEXT');
+  await addColumnIfMissing('users', "role TEXT DEFAULT 'user'");
+  await addColumnIfMissing('users', 'promptpayId TEXT');
+  await addColumnIfMissing('users', 'qrCodeUrl TEXT');
+  await addColumnIfMissing('users', 'createdAt TEXT');
 
-  db.run('CREATE INDEX IF NOT EXISTS idx_users_googleId ON users(googleId)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_users_googleId ON users(googleId)');
 
-  db.run(`
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       userId INTEGER,
@@ -72,8 +90,7 @@ db.serialize(() => {
     )
   `);
 
-  // Hashed refresh tokens so sessions can be revoked (logout / rotation)
-  db.run(`
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS refresh_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       userId INTEGER NOT NULL,
@@ -83,29 +100,9 @@ db.serialize(() => {
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
-  db.run('CREATE INDEX IF NOT EXISTS idx_refresh_userId ON refresh_tokens(userId)');
-});
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_refresh_userId ON refresh_tokens(userId)');
 
-// --- Promise helpers for clean async/await in route handlers ---
-const dbGet = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
-  );
+  console.log(`Database ready (${process.env.TURSO_DATABASE_URL ? 'Turso' : 'local SQLite file'}).`);
+}
 
-const dbAll = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))
-  );
-
-const dbRun = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    })
-  );
-
-module.exports = db;
-module.exports.dbGet = dbGet;
-module.exports.dbAll = dbAll;
-module.exports.dbRun = dbRun;
+module.exports = { client, dbGet, dbAll, dbRun, init };

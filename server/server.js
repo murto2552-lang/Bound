@@ -7,12 +7,14 @@ const path = require('path');
 const fs = require('fs');
 
 const env = require('./env');
-const db = require('./db');
-const { dbGet, dbAll, dbRun } = require('./db');
+const { dbGet, dbAll, dbRun, init } = require('./db');
 const authRoutes = require('./authRoutes');
 const { authenticateToken, authenticateAdmin } = require('./middleware');
 
 const app = express();
+
+// Behind Render's proxy: trust it so req.protocol is https and Secure cookies work.
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(
@@ -164,6 +166,13 @@ app.use((err, req, res, next) => {
   next();
 });
 
-app.listen(env.PORT, () => {
-  console.log(`Backend server running on port ${env.PORT} [${env.NODE_ENV}]`);
-});
+init()
+  .then(() => {
+    app.listen(env.PORT, () => {
+      console.log(`Backend server running on port ${env.PORT} [${env.NODE_ENV}]`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
