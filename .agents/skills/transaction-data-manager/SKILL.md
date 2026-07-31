@@ -8,13 +8,23 @@ description: Explains how financial data is stored and manipulated in the BounD 
 This document outlines how BounD manages its state and storage.
 
 ## 1. Storage Mechanism
-- All data is currently stored in the browser's `localStorage` via the `api.js` file.
-- The primary key for the transaction array is `financeTransactions`.
-- Categories are stored under `financeCategories`.
+
+- **Primary storage is server-side**, not `localStorage`. Transactions live in the
+  `transactions` table, managed by `server/db.js` (SQLite locally, [Turso](https://turso.tech)
+  libSQL in production) and served via the REST API in `server/server.js`.
+- The frontend (`src/api.js`) talks to the backend over `fetch(..., { credentials: 'include' })`
+  so the httpOnly session cookie is sent automatically — see `AUTH_SETUP.md`.
+- `src/config.js` still exposes `CONFIG.isMockMode`, which falls back to an IndexedDB store
+  (`financeDB` / `transactions`) for fully-offline development. **Production always runs with
+  `isMockMode: false`** — treat the IndexedDB path as a dev-only fallback, not the source of truth.
+- Custom categories are the one thing still client-only: they live in `localStorage` under
+  `financeCategories` and are not yet persisted server-side (no `/v1/categories` endpoint exists).
 
 ## 2. Transaction Schema
-Each transaction object contains:
-- `id`: Unique identifier (string).
+
+Each transaction row (`server/db.js`) / object contains:
+- `id`: Unique identifier (integer, auto-increment; the API returns it as a string).
+- `userId`: Owner of the row — always taken from the authenticated session, never from client input.
 - `date`: Format 'YYYY-MM-DD'.
 - `amount`: Float/Number.
 - `type`: 'income' or 'expense'.
@@ -23,7 +33,17 @@ Each transaction object contains:
 - `notes`: String description.
 - `seriesId`: (Optional) String linking recurring transactions together.
 - `title`: (Optional) Title for recurring transactions.
+- `receiptUrl`: (Optional) URL of an uploaded receipt image, served from `server/uploads/`.
 
 ## 3. Modifying the Schema
-If you need to add a new field (e.g., `receiptImage` or `isPaid`), you MUST ensure backwards compatibility. 
-When loading data in `api.js` or `Bookshelf.jsx`, provide a fallback (e.g., `tx.isPaid || false`) so that older transactions don't crash the app.
+
+The schema now lives in the database, so changes go through a migration, not just a frontend
+fallback:
+
+1. Add the column in `server/db.js` inside `init()` (the `CREATE TABLE IF NOT EXISTS` block for
+   new tables, or an `addColumnIfMissing('transactions', '<col> TEXT')` call for existing ones —
+   this project **never uses `DROP TABLE`**, since that previously wiped user data on every restart).
+2. Update the relevant routes in `server/server.js` (`GET/POST /v1/transactions`) to read/write
+   the new field.
+3. On the frontend, still provide a fallback when reading (e.g. `tx.isPaid ?? false`) so rows
+   created before the migration don't crash the UI.
