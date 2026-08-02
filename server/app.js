@@ -16,9 +16,10 @@ const app = express();
 // Behind Render/Vercel's proxy: trust it so req.protocol is https and Secure cookies work.
 app.set('trust proxy', 1);
 
-// Helmet security headers — CSP must allow Google Identity Services for Sign-In button
+// Helmet security headers — CSP & COOP must allow Google Identity Services for Sign-In popup
 app.use(
   helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
