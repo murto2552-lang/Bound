@@ -21,7 +21,7 @@ app.use(helmet());
 // For Vercel, requests to /v1 come from the same origin, but we keep CORS for local dev / cross-domain setups
 app.use(
   cors({
-    origin: env.CLIENT_ORIGINS ? env.CLIENT_ORIGINS.split(',') : true,
+    origin: env.CLIENT_ORIGINS,
     credentials: true,
   })
 );
