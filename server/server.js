@@ -170,6 +170,13 @@ app.delete('/v1/transactions/series/:seriesId', authenticateToken, (req, res) =>
   });
 });
 
+app.delete('/v1/transactions/all', authenticateToken, (req, res) => {
+  db.run('DELETE FROM transactions WHERE userId = ?', [req.user.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, deletedCount: this.changes });
+  });
+});
+
 // --- AI Assistant Routes ---
 
 app.post('/v1/ai/chat', authenticateToken, async (req, res) => {

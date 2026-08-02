@@ -208,5 +208,24 @@ export const api = {
       if (!response.ok) throw new Error('Failed to delete series');
       return true;
     }
+  },
+
+  async resetDatabase() {
+    if (CONFIG.isMockMode) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const store = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME);
+        const req = store.clear();
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    } else {
+      const response = await fetch(`${CONFIG.apiBaseUrl}/transactions/all`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to clear database');
+      return true;
+    }
   }
 };
