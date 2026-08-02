@@ -21,7 +21,7 @@ app.use(helmet());
 // For Vercel, requests to /v1 come from the same origin, but we keep CORS for local dev / cross-domain setups
 app.use(
   cors({
-    origin: env.CLIENT_ORIGINS,
+    origin: env.CLIENT_ORIGINS ? env.CLIENT_ORIGINS.split(',') : true,
     credentials: true,
   })
 );
@@ -165,7 +165,20 @@ app.get('/v1/admin/stats', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Multer / generic error handler
+// Serve React frontend in production on Render (All-in-One)
+// In this mode, Express serves both the API (/v1/*) and the built React app.
+if (env.isProd && !isVercel) {
+  const distPath = path.join(__dirname, '../dist');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    // SPA catch-all: serve index.html for any path not matched above (React Router)
+    app.use((req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+}
+
+// Multer / generic error handler (must be last)
 app.use((err, req, res, next) => {
   if (err) return res.status(400).json({ error: err.message });
   next();
