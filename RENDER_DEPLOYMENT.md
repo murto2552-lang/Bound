@@ -22,7 +22,7 @@ Render Web Service (bound-api)
 
 | ฟิลด์ | ค่าที่ต้องตั้ง |
 |---|---|
-| **Build Command** | `npm install && npm run build && cd server && npm install` |
+| **Build Command** | `npm install --include=dev && npm run build && cd server && npm install` |
 | **Start Command** | `node server/server.js` |
 | **Root Directory** | *(ว่างเปล่า หรือ `.`)* |
 
