@@ -2,6 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const db = require('./db');
+
 const app = express();
 
 // Load .env file if present
