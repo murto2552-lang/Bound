@@ -16,7 +16,23 @@ const app = express();
 // Behind Render/Vercel's proxy: trust it so req.protocol is https and Secure cookies work.
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// Helmet security headers — CSP must allow Google Identity Services for Sign-In button
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'accounts.google.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:', '*.googleusercontent.com'],
+        connectSrc: ["'self'", 'accounts.google.com'],
+        frameSrc: ["'self'", 'accounts.google.com'],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+      },
+    },
+  })
+);
 
 // For Vercel, requests to /v1 come from the same origin, but we keep CORS for local dev / cross-domain setups
 app.use(
