@@ -169,11 +169,19 @@ app.get('/v1/admin/stats', authenticateAdmin, async (req, res) => {
 // In this mode, Express serves both the API (/v1/*) and the built React app.
 if (env.isProd && !isVercel) {
   const distPath = path.join(__dirname, '../dist');
+  console.log(`[Boot] Checking static dist path: ${distPath}`);
+  
   if (fs.existsSync(distPath)) {
+    console.log('[Boot] Found dist folder, serving React app...');
     app.use(express.static(distPath));
     // SPA catch-all: serve index.html for any path not matched above (React Router)
     app.use((req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.error(`[Boot ERROR] dist folder NOT FOUND at ${distPath}`);
+    app.get('*', (req, res) => {
+      res.status(404).send('<h1>Frontend build not found!</h1><p>The <code>dist/</code> directory is missing. Please check your Render Build Command and ensure Root Directory is empty.</p>');
     });
   }
 }
