@@ -2,12 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('./db');
-
 const app = express();
+
+// Load .env file if present
+[path.join(__dirname, '.env'), path.join(__dirname, '../.env')].forEach(envPath => {
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    lines.forEach(line => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const key = match[1];
+        let value = match[2] || '';
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        process.env[key] = value.trim();
+      }
+    });
+  }
+});
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'bound-super-secret-key-2026';
 
@@ -246,20 +258,28 @@ ${recentTxs || 'ไม่มีรายการล่าสุด'}
               parts: [{ text: promptWithContext }]
             });
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-              })
-            });
+            const modelsToTry = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-            if (response.ok) {
-              const data = await response.json();
-              const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (reply) {
-                return res.json({ reply, source: 'gemini' });
+            for (const modelName of modelsToTry) {
+              try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contents,
+                    systemInstruction: { parts: [{ text: systemInstruction }] }
+                  })
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (reply) {
+                    return res.json({ reply, source: 'gemini' });
+                  }
+                }
+              } catch (singleModelErr) {
+                console.error(`Model ${modelName} call failed:`, singleModelErr.message);
               }
             }
           } catch (geminiErr) {

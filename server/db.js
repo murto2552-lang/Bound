@@ -8,9 +8,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
   } else {
     console.log('Connected to SQLite database.');
     
-    // We are dropping the transactions table to reset and add userId
     db.serialize(() => {
-      db.run(`DROP TABLE IF EXISTS transactions`);
+
       
       db.run(`
         CREATE TABLE IF NOT EXISTS users (
