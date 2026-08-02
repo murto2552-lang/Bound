@@ -167,6 +167,7 @@ app.post('/v1/transactions', authenticateToken, upload.single('receipt'), (req, 
   
   db.run(sql, params, function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    invalidateFinancialCache(userId);
     res.json({
       id: this.lastID.toString(), userId, date, amount, type, mainCategory, subcategory, notes, title, seriesId, receiptUrl
     });
@@ -176,6 +177,7 @@ app.post('/v1/transactions', authenticateToken, upload.single('receipt'), (req, 
 app.delete('/v1/transactions/:id', authenticateToken, (req, res) => {
   db.run('DELETE FROM transactions WHERE id = ? AND userId = ?', [req.params.id, req.user.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    invalidateFinancialCache(req.user.id);
     res.json({ success: true, deletedID: req.params.id });
   });
 });
@@ -183,6 +185,7 @@ app.delete('/v1/transactions/:id', authenticateToken, (req, res) => {
 app.delete('/v1/transactions/series/:seriesId', authenticateToken, (req, res) => {
   db.run('DELETE FROM transactions WHERE seriesId = ? AND userId = ?', [req.params.seriesId, req.user.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    invalidateFinancialCache(req.user.id);
     res.json({ success: true, deletedCount: this.changes });
   });
 });
@@ -190,9 +193,94 @@ app.delete('/v1/transactions/series/:seriesId', authenticateToken, (req, res) =>
 app.delete('/v1/transactions/all', authenticateToken, (req, res) => {
   db.run('DELETE FROM transactions WHERE userId = ?', [req.user.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    invalidateFinancialCache(req.user.id);
     res.json({ success: true, deletedCount: this.changes });
   });
 });
+
+// --- Financial Data Cache ---
+// In-memory cache to avoid redundant DB queries per chat message.
+// Invalidated when transactions are created or deleted.
+const financialCache = {};
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+/**
+ * Retrieves or builds the financial summary for a user.
+ * Uses in-memory cache with a 60s TTL to skip DB queries on repeat chats.
+ */
+function getFinancialContext(userId) {
+  return new Promise((resolve, reject) => {
+    const cached = financialCache[userId];
+    if (cached && Date.now() < cached.expireAt) {
+      return resolve(cached.data);
+    }
+
+    db.get('SELECT firstName, lastName FROM users WHERE id = ?', [userId], (err, user) => {
+      if (err) return reject(err);
+
+      db.all('SELECT * FROM transactions WHERE userId = ? ORDER BY date DESC', [userId], (err2, transactions) => {
+        if (err2) return reject(err2);
+
+        const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+        const balance = totalIncome - totalExpense;
+
+        const expenseByCat = {};
+        transactions.filter(t => t.type === 'expense').forEach(t => {
+          expenseByCat[t.subcategory] = (expenseByCat[t.subcategory] || 0) + Number(t.amount);
+        });
+
+        const recentTxs = transactions.slice(0, 5).map(t =>
+          `${t.date}: ${t.type === 'income' ? '+' : '-'}${t.amount} บาท (${t.subcategory || t.mainCategory}) - ${t.notes || t.title || 'ไม่มีหมายเหตุ'}`
+        ).join('\n');
+
+        const userName = user ? `${user.firstName} ${user.lastName}` : 'ผู้ใช้งาน';
+
+        const contextText = `ข้อมูลสรุปทางการเงินของคุณ ${userName}:
+- ยอดเงินคงเหลือสุทธิ: ${balance.toLocaleString('th-TH')} บาท
+- รายรับรวมทั้งหมด: ${totalIncome.toLocaleString('th-TH')} บาท
+- รายจ่ายรวมทั้งหมด: ${totalExpense.toLocaleString('th-TH')} บาท
+- หมวดหมู่รายจ่ายที่เกิดขึ้น: ${JSON.stringify(expenseByCat)}
+- 5 รายการล่าสุด:
+${recentTxs || 'ไม่มีรายการล่าสุด'}
+`;
+
+        const data = { userName, contextText, balance, totalIncome, totalExpense, expenseByCat };
+        financialCache[userId] = { data, expireAt: Date.now() + CACHE_TTL_MS };
+        resolve(data);
+      });
+    });
+  });
+}
+
+/** Invalidate the financial cache for a specific user. */
+function invalidateFinancialCache(userId) {
+  delete financialCache[userId];
+}
+
+/**
+ * Smart Token Estimation — analyze the user's message to decide
+ * maxOutputTokens so simple questions get fast, short answers
+ * while complex analyses still get full-length responses.
+ */
+function estimateMaxTokens(message) {
+  const msg = message.toLowerCase();
+
+  // SHORT — greetings, simple yes/no, thanks
+  const shortPatterns = ['สวัสดี', 'ขอบคุณ', 'ดี', 'ไง', 'หวัดดี', 'hello', 'hi', 'thanks', 'ok', 'โอเค', 'ได้เลย', 'ครับ', 'ค่ะ'];
+  if (shortPatterns.some(p => msg.includes(p)) && msg.length < 30) {
+    return 256;
+  }
+
+  // LONG — detailed analysis, graphs, planning
+  const longPatterns = ['กราฟ', 'แผนภูมิ', 'chart', 'graph', 'วิเคราะห์แบบละเอียด', 'วางแผนออมเงิน', 'วางแผนการเงิน', 'แบบละเอียด', 'ทุกหมวดหมู่', 'เปรียบเทียบ', 'สรุปทั้งหมด'];
+  if (longPatterns.some(p => msg.includes(p))) {
+    return 2048;
+  }
+
+  // MEDIUM — general questions, summaries
+  return 768;
+}
 
 // --- AI Assistant Routes ---
 
@@ -205,133 +293,146 @@ app.post('/v1/ai/chat', authenticateToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // 1. Get user details and transactions to build financial context
-    db.get('SELECT firstName, lastName FROM users WHERE id = ?', [userId], (err, user) => {
-      if (err) return res.status(500).json({ error: err.message });
+    const financialData = await getFinancialContext(userId);
+    const { userName, contextText, balance, totalIncome, totalExpense, expenseByCat } = financialData;
 
-      db.all('SELECT * FROM transactions WHERE userId = ? ORDER BY date DESC', [userId], async (err, transactions) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // Calculate summary metrics
-        const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
-        const balance = totalIncome - totalExpense;
-
-        // Group expenses by subcategory
-        const expenseByCat = {};
-        transactions.filter(t => t.type === 'expense').forEach(t => {
-          expenseByCat[t.subcategory] = (expenseByCat[t.subcategory] || 0) + Number(t.amount);
-        });
-
-        const recentTxs = transactions.slice(0, 5).map(t => `${t.date}: ${t.type === 'income' ? '+' : '-'}${t.amount} บาท (${t.subcategory || t.mainCategory}) - ${t.notes || t.title || 'ไม่มีหมายเหตุ'}`).join('\n');
-
-        const userName = user ? `${user.firstName} ${user.lastName}` : 'ผู้ใช้งาน';
-        
-        const contextText = `ข้อมูลสรุปทางการเงินของคุณ ${userName}:
-- ยอดเงินคงเหลือสุทธิ: ${balance.toLocaleString('th-TH')} บาท
-- รายรับรวมทั้งหมด: ${totalIncome.toLocaleString('th-TH')} บาท
-- รายจ่ายรวมทั้งหมด: ${totalExpense.toLocaleString('th-TH')} บาท
-- หมวดหมู่รายจ่ายที่เกิดขึ้น: ${JSON.stringify(expenseByCat)}
-- 5 รายการล่าสุด:
-${recentTxs || 'ไม่มีรายการล่าสุด'}
-`;
-
-        const systemInstruction = `คุณคือ "BounD AI" ผู้ช่วยการเงินส่วนบุคคลที่ชาญฉลาด มีความเป็นมิตร สุภาพ และให้คำแนะนำทางการเงินที่เป็นประโยชน์ ตรงจุด เข้าใจง่าย ตอบเป็นภาษาไทยเป็นหลัก
+    const systemInstruction = `คุณคือ "BounD AI" ผู้ช่วยการเงินส่วนบุคคลที่ชาญฉลาด มีความเป็นมิตร สุภาพ และให้คำแนะนำทางการเงินที่เป็นประโยชน์ ตรงจุด เข้าใจง่าย ตอบเป็นภาษาไทยเป็นหลัก
 ใช้อิโมจิประกอบให้น่าอ่าน ตอบกระชับ ไม่ยาวเกินไป และอ้างอิงข้อมูลทางการเงินของผู้ใช้เมื่อเหมาะสม`;
 
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-        console.log('Gemini API key loaded:', apiKey ? apiKey.substring(0, 10) + '...' : 'NONE');
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-        if (apiKey) {
-          try {
-            // Build conversation payload for Gemini API
-            const contents = [];
-            
-            // Add system context & user finance state in prompt
-            const promptWithContext = `[บริบทการเงินปัจจุบันของผู้ใช้]\n${contextText}\n\n[คำถามของผู้ใช้]: ${message}`;
+    if (apiKey) {
+      try {
+        // Build conversation payload
+        const contents = [];
+        const promptWithContext = `[บริบทการเงินปัจจุบันของผู้ใช้]\n${contextText}\n\n[คำถามของผู้ใช้]: ${message}`;
 
-            if (history && Array.isArray(history)) {
-              history.slice(-6).forEach(item => {
-                contents.push({
-                  role: item.sender === 'user' ? 'user' : 'model',
-                  parts: [{ text: item.text }]
-                });
-              });
-            }
-
+        if (history && Array.isArray(history)) {
+          history.slice(-6).forEach(item => {
             contents.push({
-              role: 'user',
-              parts: [{ text: promptWithContext }]
+              role: item.sender === 'user' ? 'user' : 'model',
+              parts: [{ text: item.text }]
             });
+          });
+        }
 
-            const modelsToTry = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        contents.push({
+          role: 'user',
+          parts: [{ text: promptWithContext }]
+        });
 
-            for (const modelName of modelsToTry) {
-              try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    contents,
-                    systemInstruction: { parts: [{ text: systemInstruction }] }
-                  })
-                });
+        const maxOutputTokens = estimateMaxTokens(message);
 
-                if (response.ok) {
-                  const data = await response.json();
-                  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (reply) {
-                    return res.json({ reply, source: 'gemini' });
+        // Use streamGenerateContent with SSE for real-time streaming
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+              maxOutputTokens
+            }
+          })
+        });
+
+        if (geminiResponse.ok && geminiResponse.body) {
+          // Set SSE headers for streaming to client
+          res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+          });
+
+          // Read the Gemini SSE stream and forward chunks to the client
+          const reader = geminiResponse.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+
+              // Process complete SSE events (separated by double newlines)
+              const events = buffer.split('\n\n');
+              buffer = events.pop(); // Keep incomplete event in buffer
+
+              for (const event of events) {
+                const lines = event.split('\n');
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr || jsonStr === '[DONE]') continue;
+                    try {
+                      const chunk = JSON.parse(jsonStr);
+                      const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+                      if (text) {
+                        res.write(`data: ${JSON.stringify({ text, source: 'gemini' })}\n\n`);
+                      }
+                    } catch (parseErr) {
+                      // Skip unparseable chunks
+                    }
                   }
-                } else {
-                  const errText = await response.text();
-                  console.error(`Gemini API error for model ${modelName} (${response.status}):`, errText);
                 }
-              } catch (singleModelErr) {
-                console.error(`Model ${modelName} call failed:`, singleModelErr.message);
               }
             }
-          } catch (geminiErr) {
-            console.error('Gemini API call error:', geminiErr);
+          } catch (streamErr) {
+            console.error('Stream read error:', streamErr.message);
           }
-        }
 
-        // Smart Fallback Assistant response if no API key or API call failed
-        let fallbackReply = '';
-        const msgLower = message.toLowerCase();
-
-        if (msgLower.includes('วิเคราะห์') || msgLower.includes('สรุป') || msgLower.includes('ภาพรวม')) {
-          fallbackReply = `📊 **สรุปภาพรวมการเงินของคุณ ${userName}**\n\n` +
-            `• **ยอดเงินคงเหลือปัจจุบัน:** ${balance.toLocaleString('th-TH')} บาท\n` +
-            `• **รายรับรวม:** +${totalIncome.toLocaleString('th-TH')} บาท\n` +
-            `• **รายจ่ายรวม:** -${totalExpense.toLocaleString('th-TH')} บาท\n\n` +
-            (balance < 0 
-              ? `⚠️ ยอดเงินคงเหลือติดลบ แนะนำให้ชะลอรายจ่ายฟุ่มเฟือยและตรวจสอบหมวดหมู่รายจ่ายคงที่ครับ`
-              : `💡 การเงินของคุณค่อนข้างมั่นคง! มีเงินคงเหลือคิดเป็น ${totalIncome > 0 ? Math.round((balance/totalIncome)*100) : 0}% ของรายรับรวมครับ`);
-        } else if (msgLower.includes('ออม') || msgLower.includes('เก็บเงิน') || msgLower.includes('เป้าหมาย')) {
-          fallbackReply = `💡 **คำแนะนำการออมเงินจาก BounD AI**\n\n` +
-            `1. **กฎ 50/30/20:** แบ่งรายรับเป็น ค่าใช้จ่ายจำเป็น 50%, ความสุขส่วนตัว 30%, และเงินออม 20%\n` +
-            `2. **ออมก่อนใช้:** ตั้งโอนเงินเข้าบัญชีออมทันทีที่รายรับเข้าอย่างน้อย 10-20%\n` +
-            `3. **ตั้งสำรองฉุกเฉิน:** ควรมีเงินสำรอง 3-6 เท่าของรายจ่ายประจำเดือน (${(totalExpense * 3).toLocaleString('th-TH')} บาท)`;
-        } else if (msgLower.includes('จ่าย') || msgLower.includes('หมวดหมู่') || msgLower.includes('ฟุ่มเฟือย')) {
-          const topSubcat = Object.entries(expenseByCat).sort((a, b) => b[1] - a[1])[0];
-          fallbackReply = `🛍️ **วิเคราะห์หมวดหมู่การใช้จ่าย**\n\n` +
-            `• คุณมีรายจ่ายรวมทั้งหมด -${totalExpense.toLocaleString('th-TH')} บาท\n` +
-            (topSubcat ? `• หมวดหมู่ที่คุณจ่ายมากที่สุดคือ **${topSubcat[0]}** รวมเป็นเงิน -${topSubcat[1].toLocaleString('th-TH')} บาท\n` : '') +
-            `\n💡 **Tip:** ลองตั้งเป้าหมายลดรายจ่ายหมวดหมู่นี้ลง 10-15% จะช่วยให้มีเงินออมเพิ่มขึ้นได้ครับ!`;
+          // Signal stream completion
+          res.write(`event: done\ndata: {}\n\n`);
+          res.end();
+          return;
         } else {
-          fallbackReply = `สวัสดีครับคุณ ${userName}! 🤖 ผมคือ **BounD AI Assistant** ยินดีช่วยคำนวณและวางแผนการเงินครับ\n\n` +
-            `ขณะนี้คุณมียอดเงินคงเหลือสุทธิ **${balance.toLocaleString('th-TH')} บาท**\n\n` +
-            `คุณสามารถสอบถามเกี่ยวกับ:\n` +
-            `• *"ช่วยวิเคราะห์ภาพรวมการเงิน"* \n` +
-            `• *"ขอคำแนะนำในการออมเงิน"* \n` +
-            `• *"หมวดหมู่ไหนที่จ่ายมากที่สุด?"*\n\n` +
-            `*(โน้ต: หากต้องการเปิดใช้งานพลัง Gemini AI เต็มรูปแบบ สามารถใส่ GEMINI_API_KEY ในไฟล์ .env ได้เลยครับ)*`;
+          const errText = await geminiResponse.text();
+          console.error(`Gemini streaming error (${geminiResponse.status}):`, errText);
         }
+      } catch (geminiErr) {
+        console.error('Gemini API call error:', geminiErr);
+      }
+    }
 
-        res.json({ reply: fallbackReply, source: 'fallback' });
-      });
-    });
+    // Smart Fallback Assistant response if no API key or API call failed
+    let fallbackReply = '';
+    const msgLower = message.toLowerCase();
+
+    if (msgLower.includes('วิเคราะห์') || msgLower.includes('สรุป') || msgLower.includes('ภาพรวม')) {
+      fallbackReply = `📊 **สรุปภาพรวมการเงินของคุณ ${userName}**\n\n` +
+        `• **ยอดเงินคงเหลือปัจจุบัน:** ${balance.toLocaleString('th-TH')} บาท\n` +
+        `• **รายรับรวม:** +${totalIncome.toLocaleString('th-TH')} บาท\n` +
+        `• **รายจ่ายรวม:** -${totalExpense.toLocaleString('th-TH')} บาท\n\n` +
+        (balance < 0 
+          ? `⚠️ ยอดเงินคงเหลือติดลบ แนะนำให้ชะลอรายจ่ายฟุ่มเฟือยและตรวจสอบหมวดหมู่รายจ่ายคงที่ครับ`
+          : `💡 การเงินของคุณค่อนข้างมั่นคง! มีเงินคงเหลือคิดเป็น ${totalIncome > 0 ? Math.round((balance/totalIncome)*100) : 0}% ของรายรับรวมครับ`);
+    } else if (msgLower.includes('ออม') || msgLower.includes('เก็บเงิน') || msgLower.includes('เป้าหมาย')) {
+      fallbackReply = `💡 **คำแนะนำการออมเงินจาก BounD AI**\n\n` +
+        `1. **กฎ 50/30/20:** แบ่งรายรับเป็น ค่าใช้จ่ายจำเป็น 50%, ความสุขส่วนตัว 30%, และเงินออม 20%\n` +
+        `2. **ออมก่อนใช้:** ตั้งโอนเงินเข้าบัญชีออมทันทีที่รายรับเข้าอย่างน้อย 10-20%\n` +
+        `3. **ตั้งสำรองฉุกเฉิน:** ควรมีเงินสำรอง 3-6 เท่าของรายจ่ายประจำเดือน (${(totalExpense * 3).toLocaleString('th-TH')} บาท)`;
+    } else if (msgLower.includes('จ่าย') || msgLower.includes('หมวดหมู่') || msgLower.includes('ฟุ่มเฟือย')) {
+      const topSubcat = Object.entries(expenseByCat).sort((a, b) => b[1] - a[1])[0];
+      fallbackReply = `🛍️ **วิเคราะห์หมวดหมู่การใช้จ่าย**\n\n` +
+        `• คุณมีรายจ่ายรวมทั้งหมด -${totalExpense.toLocaleString('th-TH')} บาท\n` +
+        (topSubcat ? `• หมวดหมู่ที่คุณจ่ายมากที่สุดคือ **${topSubcat[0]}** รวมเป็นเงิน -${topSubcat[1].toLocaleString('th-TH')} บาท\n` : '') +
+        `\n💡 **Tip:** ลองตั้งเป้าหมายลดรายจ่ายหมวดหมู่นี้ลง 10-15% จะช่วยให้มีเงินออมเพิ่มขึ้นได้ครับ!`;
+    } else {
+      fallbackReply = `สวัสดีครับคุณ ${userName}! 🤖 ผมคือ **BounD AI Assistant** ยินดีช่วยคำนวณและวางแผนการเงินครับ\n\n` +
+        `ขณะนี้คุณมียอดเงินคงเหลือสุทธิ **${balance.toLocaleString('th-TH')} บาท**\n\n` +
+        `คุณสามารถสอบถามเกี่ยวกับ:\n` +
+        `• *"ช่วยวิเคราะห์ภาพรวมการเงิน"* \n` +
+        `• *"ขอคำแนะนำในการออมเงิน"* \n` +
+        `• *"หมวดหมู่ไหนที่จ่ายมากที่สุด?"*\n\n` +
+        `*(โน้ต: หากต้องการเปิดใช้งานพลัง Gemini AI เต็มรูปแบบ สามารถใส่ GEMINI_API_KEY ในไฟล์ .env ได้เลยครับ)*`;
+    }
+
+    res.json({ reply: fallbackReply, source: 'fallback' });
   } catch (err) {
     console.error('Chat endpoint error:', err);
     res.status(500).json({ error: 'Failed to process chat request' });

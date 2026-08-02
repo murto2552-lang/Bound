@@ -61,6 +61,20 @@ export default function AiChatbot() {
     if (!textToSend) setInputMessage('');
     setIsLoading(true);
 
+    // Create an empty bot message that will be filled via streaming
+    const botMsgId = Date.now() + 1;
+    const botMsgTimestamp = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+    // Add the empty bot message bubble immediately
+    setMessages((prev) => [...prev, {
+      id: botMsgId,
+      sender: 'bot',
+      text: '',
+      timestamp: botMsgTimestamp,
+      source: 'gemini',
+      isStreaming: true
+    }]);
+
     try {
       // Build history payload for Gemini
       const historyPayload = messages.map(m => ({
@@ -68,27 +82,39 @@ export default function AiChatbot() {
         text: m.text
       }));
 
-      const res = await api.sendAiChat(text, historyPayload);
+      const res = await api.sendAiChat(text, historyPayload, (chunk) => {
+        // onChunk callback: update the bot message text incrementally
+        setMessages((prev) => prev.map(msg =>
+          msg.id === botMsgId
+            ? { ...msg, text: msg.text + chunk }
+            : msg
+        ));
+      });
 
-      const botMsg = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: res.reply || 'ขออภัยครับ ไม่สามารถประมวลผลคำตอบได้ในขณะนี้',
-        timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-        source: res.source
-      };
-
-      setMessages((prev) => [...prev, botMsg]);
+      // Finalize the bot message (mark streaming complete, set source)
+      setMessages((prev) => prev.map(msg =>
+        msg.id === botMsgId
+          ? {
+              ...msg,
+              text: res.reply || msg.text || 'ขออภัยครับ ไม่สามารถประมวลผลคำตอบได้ในขณะนี้',
+              source: res.source,
+              isStreaming: false
+            }
+          : msg
+      ));
     } catch (err) {
       console.error(err);
-      const errorMsg = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: '⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI กรุณาลองใหม่อีกครั้งครับ',
-        timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-        source: 'error'
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      // Replace the streaming bot message with an error message
+      setMessages((prev) => prev.map(msg =>
+        msg.id === botMsgId
+          ? {
+              ...msg,
+              text: '⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI กรุณาลองใหม่อีกครั้งครับ',
+              source: 'error',
+              isStreaming: false
+            }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
@@ -184,7 +210,10 @@ export default function AiChatbot() {
                       : 'bg-white border border-slate-200/80 text-slate-800 rounded-tl-none shadow-purple-500/5'
                   }`}
                 >
-                  {renderFormattedText(msg.text)}
+                  {msg.text ? renderFormattedText(msg.text) : null}
+                  {msg.isStreaming && (
+                    <span className="inline-block w-2 h-4 bg-purple-500 rounded-sm animate-pulse ml-0.5 align-middle" />
+                  )}
                 </div>
                 
                 <div className={`text-[10px] text-slate-400 px-1 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
@@ -195,7 +224,7 @@ export default function AiChatbot() {
           ))}
         </AnimatePresence>
 
-        {isLoading && (
+        {isLoading && !messages.some(m => m.isStreaming && m.text.length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -206,7 +235,7 @@ export default function AiChatbot() {
             </div>
             <div className="bg-white border border-slate-200/80 p-3.5 rounded-2xl rounded-tl-none text-slate-500 text-sm flex items-center gap-2 shadow-sm">
               <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-              <span>BounD AI กำลังวิเคราะห์ข้อมูลการเงินของคุณ...</span>
+              <span>BounD AI กำลังเชื่อมต่อ...</span>
             </div>
           </motion.div>
         )}

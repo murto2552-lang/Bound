@@ -86,13 +86,74 @@ export const api = {
     return await response.json();
   },
 
-  async sendAiChat(message, history) {
+  /**
+   * Send a chat message to the AI assistant.
+   * Supports streaming (SSE) — calls onChunk(text) for each text fragment.
+   * Falls back to a full JSON response for fallback/error cases.
+   * @param {string} message - The user's message
+   * @param {Array} history - Conversation history
+   * @param {function} onChunk - Callback invoked with each streaming text chunk
+   * @returns {Promise<{reply: string, source: string}>}
+   */
+  async sendAiChat(message, history, onChunk) {
     const response = await fetch(`${CONFIG.apiBaseUrl}/ai/chat`, {
       method: 'POST',
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, history })
     });
+
     if (!response.ok) throw new Error('Failed to send message to AI');
+
+    const contentType = response.headers.get('Content-Type') || '';
+
+    // Handle SSE streaming response
+    if (contentType.includes('text/event-stream') && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+      let source = 'gemini';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events separated by double newlines
+        const events = buffer.split('\n\n');
+        buffer = events.pop(); // Keep incomplete event in buffer
+
+        for (const event of events) {
+          // Check for the "done" event
+          if (event.startsWith('event: done')) {
+            continue;
+          }
+
+          const lines = event.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              try {
+                const chunk = JSON.parse(jsonStr);
+                if (chunk.text) {
+                  fullText += chunk.text;
+                  if (chunk.source) source = chunk.source;
+                  if (onChunk) onChunk(chunk.text);
+                }
+              } catch (e) {
+                // Skip unparseable chunks
+              }
+            }
+          }
+        }
+      }
+
+      return { reply: fullText, source };
+    }
+
+    // Fallback: standard JSON response
     return await response.json();
   },
 
