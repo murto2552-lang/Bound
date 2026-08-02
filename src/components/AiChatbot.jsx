@@ -11,15 +11,29 @@ const QUICK_PROMPTS = [
 ];
 
 export default function AiChatbot() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: 'สวัสดีครับ! ผมคือ **BounD Gemini AI** ผู้ช่วยการเงินส่วนบุคคลอัจฉริยะ 🤖✨\n\nผมสามารถช่วยคุณวิเคราะห์การใช้จ่าย ให้คำแนะนำในการออมเงิน หรือสรุปภาพรวมบัญชีของคุณได้ครับ ลองพิมพ์คำถามหรือเลือกปุ่มคำแนะนำด้านล่างได้เลยครับ!',
-      timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-      source: 'gemini'
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('bound_ai_chat_history');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse chat history", e);
+      }
     }
-  ]);
+    return [
+      {
+        id: 1,
+        sender: 'bot',
+        text: 'สวัสดีครับ! ผมคือ **BounD Gemini AI** ผู้ช่วยการเงินส่วนบุคคลอัจฉริยะ 🤖✨\n\nผมสามารถช่วยคุณวิเคราะห์การใช้จ่าย ให้คำแนะนำในการออมเงิน หรือสรุปภาพรวมบัญชีของคุณได้ครับ ลองพิมพ์คำถามหรือเลือกปุ่มคำแนะนำด้านล่างได้เลยครับ!',
+        timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+        source: 'gemini'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bound_ai_chat_history', JSON.stringify(messages));
+  }, [messages]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);

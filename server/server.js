@@ -240,6 +240,7 @@ ${recentTxs || 'ไม่มีรายการล่าสุด'}
 ใช้อิโมจิประกอบให้น่าอ่าน ตอบกระชับ ไม่ยาวเกินไป และอ้างอิงข้อมูลทางการเงินของผู้ใช้เมื่อเหมาะสม`;
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        console.log('Gemini API key loaded:', apiKey ? apiKey.substring(0, 10) + '...' : 'NONE');
 
         if (apiKey) {
           try {
@@ -282,6 +283,9 @@ ${recentTxs || 'ไม่มีรายการล่าสุด'}
                   if (reply) {
                     return res.json({ reply, source: 'gemini' });
                   }
+                } else {
+                  const errText = await response.text();
+                  console.error(`Gemini API error for model ${modelName} (${response.status}):`, errText);
                 }
               } catch (singleModelErr) {
                 console.error(`Model ${modelName} call failed:`, singleModelErr.message);
