@@ -6,6 +6,7 @@ import CalendarView from './pages/CalendarView';
 import Auth from './pages/Auth';
 import Profile from './pages/Profile';
 import Receive from './pages/Receive';
+import AiChat from './pages/AiChat';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('bound_token');
@@ -29,6 +30,7 @@ export default function App() {
           <Route index element={<Bookshelf />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="assistant" element={<Assistant />} />
+          <Route path="ai-chat" element={<AiChat />} />
           <Route path="profile" element={<Profile />} />
           <Route path="receive" element={<Receive />} />
         </Route>
