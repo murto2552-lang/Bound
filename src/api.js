@@ -86,6 +86,16 @@ export const api = {
     return await response.json();
   },
 
+  async sendAiChat(message, history) {
+    const response = await fetch(`${CONFIG.apiBaseUrl}/ai/chat`, {
+      method: 'POST',
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history })
+    });
+    if (!response.ok) throw new Error('Failed to send message to AI');
+    return await response.json();
+  },
+
   async getTransactions() {
     if (CONFIG.isMockMode) {
       const db = await openDB();
