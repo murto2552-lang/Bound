@@ -165,23 +165,30 @@ app.get('/v1/admin/stats', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Serve React frontend in production on Render (All-in-One)
-// In this mode, Express serves both the API (/v1/*) and the built React app.
-if (env.isProd && !isVercel) {
-  const distPath = path.join(__dirname, '../dist');
-  console.log(`[Boot] Checking static dist path: ${distPath}`);
-  
+// Serve React frontend (All-in-One for Render)
+// Always serve static if dist/ exists, regardless of NODE_ENV.
+// On Vercel, this block is skipped — Vercel handles static files itself.
+const distPath = path.join(__dirname, '../dist');
+console.log(`[Boot] NODE_ENV=${process.env.NODE_ENV}, VERCEL=${process.env.VERCEL || 'unset'}`);
+console.log(`[Boot] Looking for frontend build at: ${distPath}`);
+console.log(`[Boot] dist exists: ${fs.existsSync(distPath)}`);
+
+if (!isVercel) {
   if (fs.existsSync(distPath)) {
-    console.log('[Boot] Found dist folder, serving React app...');
+    console.log('[Boot] Serving React app from dist/ ...');
     app.use(express.static(distPath));
     // SPA catch-all: serve index.html for any path not matched above (React Router)
     app.use((req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
-    console.error(`[Boot ERROR] dist folder NOT FOUND at ${distPath}`);
-    app.get('*', (req, res) => {
-      res.status(404).send('<h1>Frontend build not found!</h1><p>The <code>dist/</code> directory is missing. Please check your Render Build Command and ensure Root Directory is empty.</p>');
+    console.error(`[Boot] WARNING: dist/ NOT found at ${distPath}. Running in API-only mode.`);
+    app.use((req, res) => {
+      res.status(503).send(
+        '<h1>Frontend not built yet</h1>' +
+        `<p>Expected <code>dist/</code> at: ${distPath}</p>` +
+        '<p>Build Command must be: <code>npm install --include=dev &amp;&amp; npm run build &amp;&amp; cd server &amp;&amp; npm install</code></p>'
+      );
     });
   }
 }
@@ -193,3 +200,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
