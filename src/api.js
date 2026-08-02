@@ -121,7 +121,7 @@ export const api = {
         buffer += decoder.decode(value, { stream: true });
 
         // Parse SSE events separated by double newlines
-        const events = buffer.split('\n\n');
+        const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop(); // Keep incomplete event in buffer
 
         for (const event of events) {
@@ -130,7 +130,7 @@ export const api = {
             continue;
           }
 
-          const lines = event.split('\n');
+          const lines = event.split(/\r?\n/);
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const jsonStr = line.slice(6).trim();

@@ -360,11 +360,11 @@ app.post('/v1/ai/chat', authenticateToken, async (req, res) => {
               buffer += decoder.decode(value, { stream: true });
 
               // Process complete SSE events (separated by double newlines)
-              const events = buffer.split('\n\n');
+              const events = buffer.split(/\r?\n\r?\n/);
               buffer = events.pop(); // Keep incomplete event in buffer
 
               for (const event of events) {
-                const lines = event.split('\n');
+                const lines = event.split(/\r?\n/);
                 for (const line of lines) {
                   if (line.startsWith('data: ')) {
                     const jsonStr = line.slice(6).trim();
@@ -372,11 +372,12 @@ app.post('/v1/ai/chat', authenticateToken, async (req, res) => {
                     try {
                       const chunk = JSON.parse(jsonStr);
                       const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+                      console.log('Parsed text:', text ? text.substring(0,20) : 'NONE');
                       if (text) {
                         res.write(`data: ${JSON.stringify({ text, source: 'gemini' })}\n\n`);
                       }
                     } catch (parseErr) {
-                      // Skip unparseable chunks
+                      console.error('SSE Parse error:', parseErr.message, 'Raw:', jsonStr.substring(0, 50));
                     }
                   }
                 }
